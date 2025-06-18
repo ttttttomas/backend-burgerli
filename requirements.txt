@@ -9,3 +9,6 @@ python-multipart
 aiosmtplib
 python-jose
 pydantic[email]
+bycrypt
+python-multipart
+jwt
