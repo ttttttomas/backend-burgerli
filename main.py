@@ -1,29 +1,37 @@
-from fastapi import FastAPI
-import uvicorn
-from fastapi.middleware.cors import CORSMiddleware
-from routers import login, token
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.security import OAuth2PasswordRequestForm
+from auth.authentication import oauth2_scheme, get_current_user, create_access_token
+from models.user import User
+from Database.users import verify_user_credentials, get_user_by_username, create_user
 
 app = FastAPI()
 
-origins = [
-    "http://localhost:3000",
-]
+@app.post("/register")
+async def register(user: User):
+    existing_user = get_user_by_username(user.username)
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail="Username already registered"
+        )
+    success = create_user(user.username, user.password)
+    if not success:
+        raise HTTPException(
+            status_code=500,
+            detail="Error creating user"
+        )
+    return {"message": "User created successfully"}
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+@app.post("/token")
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    if not verify_user_credentials(form_data.username, form_data.password):
+        raise HTTPException(
+            status_code=400,
+            detail="Incorrect username or password"
+        )
+    access_token = create_access_token(data={"sub": form_data.username})
+    return {"access_token": access_token, "token_type": "bearer"}
 
-
-@app.get('/')
-def read_root():
-    return {"message": "Burgerli API by iWeb Techonology. All rights reserved"}
-
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
-    
-app.include_router(login.router, prefix="/login", tags=["login"])
-app.include_router(token.router, prefix="/token", tags=["token"])
+@app.get("/protected")
+async def protected_route(username: str = Depends(get_current_user)):
+    return {"message": f"Hello, {username}! This is a protected resource."}
