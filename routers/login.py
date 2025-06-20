@@ -24,7 +24,7 @@ async def register(user: User):
         )
     return {"message": "User created successfully"}
 
-@router.post("/login")
+@router.post("/token")
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     if not verify_user_credentials(form_data.username, form_data.password):
         raise HTTPException(
