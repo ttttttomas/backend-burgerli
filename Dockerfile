@@ -3,7 +3,6 @@ FROM python
 RUN apt-get update && apt-get install -y \
     default-libmysqlclient-dev build-essential pkg-config
 
-WORKDIR /app
 COPY ./app /app
 RUN pip install -r requirements.txt
 
