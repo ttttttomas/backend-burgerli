@@ -2,9 +2,10 @@ from fastapi import FastAPI, Depends, HTTPException, APIRouter
 from fastapi.security import OAuth2PasswordRequestForm
 from auth.authentication import oauth2_scheme, get_current_user, create_access_token
 from models.user import User
-from Database.users import verify_user_credentials, get_user_by_username, create_user
+from Database.users import verify_user_credentials, get_user_by_username, create_user, delete_user
 from Database.getConnection import engine
 from sqlalchemy import text
+import uuid
 
 router = APIRouter()
 
@@ -53,3 +54,13 @@ async def get_users():
             return rows
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@router.get("/deleteUser")
+async def delete_user_endpoint(id: str):
+    success = delete_user(id)
+    if not success:
+        raise HTTPException(
+            status_code=500,
+            detail="Error deleting user"
+        )
+    return {"message": "User deleted successfully"}
