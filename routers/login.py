@@ -60,8 +60,8 @@ async def login_for_access_token(
             httponly=True,
             max_age=ACCESS_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
             expires=ACCESS_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-            secure=False,
-            samesite= None
+            secure=True,
+            samesite= None,
         )
         
         return response
