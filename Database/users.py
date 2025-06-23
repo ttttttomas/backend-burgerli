@@ -22,14 +22,23 @@ def get_user_by_username(username: str) -> Optional[UserDB]:
     finally:
         db.close()
 
-def verify_user_credentials(username: str, password: str) -> Optional[UserDB]:
+def get_user_by_username_and_password(username: str, password: str):
     """
-    Verifica las credenciales del usuario y devuelve el objeto User si son válidas
+    Obtiene el objeto del usuario si las credenciales son válidas
     """
     user = get_user_by_username(username)
     if user is not None and str(user.password) == str(password):
         return user
     return None
+
+def verify_user_credentials(username: str, password: str) -> bool:
+    """
+    Verifica las credenciales del usuario y devuelve True si son válidas
+    """
+    user = get_user_by_username(username)
+    if user is not None and str(user.password) == str(password):
+        return True
+    return False
 
 def create_user(username: str, password: str) -> bool:
     """
