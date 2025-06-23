@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, APIRouter
+from fastapi import FastAPI, Depends, HTTPException, APIRouter, Response, Cookie
 from fastapi.security import OAuth2PasswordRequestForm
 from auth.authentication import oauth2_scheme, get_current_user, create_access_token
 from models.user import User
@@ -26,14 +26,38 @@ async def register(user: User):
     return {"message": "User created successfully"}
 
 @router.post("/token")
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    if not verify_user_credentials(form_data.username, form_data.password):
+async def login_for_access_token(
+    response: Response,
+    ACCESS_TOKEN_EXPIRE_DAYS: int = Cookie(default=30, max_age=30),
+    form_data: OAuth2PasswordRequestForm = Depends()
+):
+    user = verify_user_credentials(form_data.username, form_data.password)
+    
+    if not user:
         raise HTTPException(
             status_code=400,
             detail="Incorrect username or password"
         )
-    access_token = create_access_token(data={"sub": form_data.username})
-    return {"access_token": access_token, "token_type": "bearer"}
+    
+    access_token = create_access_token(
+        data={"sub": form_data.username}
+    )
+    
+    response.set_cookie(
+        key="access_token", 
+        value=access_token,  
+        httponly=True,       
+        max_age=ACCESS_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  
+        expires=ACCESS_TOKEN_EXPIRE_DAYS * 24 * 60 * 60, 
+        secure=True,        
+        samesite="lax"     
+    )
+    
+    return {
+        "message": "Login successful, session stored in cookie.",
+        "ID": user.id,
+        "username": user.username
+    }
 
 @router.get("/protected")
 async def protected_route(username: str = Depends(get_current_user)):

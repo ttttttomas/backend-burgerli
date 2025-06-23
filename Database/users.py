@@ -22,15 +22,14 @@ def get_user_by_username(username: str) -> Optional[UserDB]:
     finally:
         db.close()
 
-def verify_user_credentials(username: str, password: str) -> bool:
+def verify_user_credentials(username: str, password: str) -> Optional[UserDB]:
     """
-    Verifica las credenciales del usuario
+    Verifica las credenciales del usuario y devuelve el objeto User si son válidas
     """
     user = get_user_by_username(username)
-    if user is not None:
-        # Convertir a string para evitar problemas con SQLAlchemy
-        return str(user.password) == str(password)
-    return False
+    if user is not None and str(user.password) == str(password):
+        return user
+    return None
 
 def create_user(username: str, password: str) -> bool:
     """
