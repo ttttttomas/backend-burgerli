@@ -58,6 +58,23 @@ def create_user(username: str, password: str) -> bool:
     finally:
         db.close()
 
+def get_user_by_id(id: str) -> Optional[UserDB]:
+    """
+    Obtiene un usuario de la base de datos por su id
+    """
+    db = getConnectionForLogin()
+    if db is None:
+        return None
+    
+    try:
+        user = db.query(UserDB).filter(UserDB.id == id).first()
+        return user
+    except Exception as e:
+        print(f"Error getting user: {e}")
+        return None
+    finally:    
+        db.close()
+
 def delete_user(id: str):
     """
     Elimina un usuario de la base de datos

@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, APIRouter, Response, Cookie
 from fastapi.security import OAuth2PasswordRequestForm
 from auth.authentication import oauth2_scheme, get_current_user, create_access_token
 from models.user import User
-from Database.users import verify_user_credentials, get_user_by_username, create_user, delete_user
+from Database.users import verify_user_credentials, get_user_by_username, create_user, delete_user, get_user_by_id
 from Database.getConnection import engine
 from sqlalchemy import text
 import uuid
@@ -55,8 +55,7 @@ async def login_for_access_token(
     
     return {
         "message": "Login successful, session stored in cookie.",
-        "ID": user.id,
-        "username": user.username
+        "ID": user.id
     }
 
 @router.get("/protected")
@@ -78,7 +77,17 @@ async def get_users():
             return rows
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
+@router.get("/getUserByID")
+async def get_user_by_id_endpoint(id: str):
+    user = get_user_by_id(id)
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+    return user
+
 @router.get("/deleteUser")
 async def delete_user_endpoint(id: str):
     success = delete_user(id)
