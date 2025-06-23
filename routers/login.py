@@ -1,10 +1,11 @@
 from fastapi import FastAPI, Depends, HTTPException, APIRouter, Response, Cookie
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import JSONResponse
 from auth.authentication import oauth2_scheme, get_current_user, create_access_token
 from models.user import User
 from Database.users import verify_user_credentials, get_user_by_username, create_user, delete_user, get_user_by_id, get_user_by_username_and_password
 from Database.getConnection import engine
-from sqlalchemy import text
+from sqlalchemy import JSON, text
 import uuid
 
 router = APIRouter()
@@ -39,7 +40,6 @@ async def login_for_access_token(
             password=form_data.password
         )
         
-        # Verificar si el usuario fue encontrado
         if user is None:
             raise HTTPException(
                 status_code=400,
@@ -50,25 +50,21 @@ async def login_for_access_token(
             data={"sub": form_data.username}
         )
         
-        response.set_cookie(
-            key="access_token", 
-            value=access_token,  
-            httponly=True,       
-            max_age=ACCESS_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  
-            expires=ACCESS_TOKEN_EXPIRE_DAYS * 24 * 60 * 60, 
-            secure=False,        
-            samesite="lax"     
+        response = JSONResponse(
+            content={"message": "Login successful, session stored in cookie.", "ID": user.id},
         )
         
-        return {
-            "message": "Login successful, session stored in cookie.",
-            "ID": user.id
-        }
-    else:
-        raise HTTPException(
-            status_code=400,
-            detail="Incorrect username or password"
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            max_age=ACCESS_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+            expires=ACCESS_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+            secure=False,
+            samesite= "lax"
         )
+        
+        return response
 
 @router.get("/protected")
 async def protected_route(username: str = Depends(get_current_user)):
