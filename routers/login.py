@@ -30,7 +30,6 @@ async def register(user: User):
 @router.post("/token")
 async def login_for_access_token(
     response: Response,
-    ACCESS_TOKEN_EXPIRE_DAYS: int = Cookie(max_age=30),
     form_data: OAuth2PasswordRequestForm = Depends()
 ):
     # Verificar las credenciales
@@ -59,7 +58,7 @@ async def login_for_access_token(
             key="access_token",
             value=access_token,
             httponly=True,
-            max_age=ACCESS_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+            expires=30 * 24 * 60 * 60,
             secure=os.getenv("ENV") == "production",
             samesite= None,
         )
