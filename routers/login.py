@@ -29,8 +29,6 @@ async def register(user: User):
         )
     return {"message": "User created successfully"}
 
-
-
 @router.post("/token")
 
 async def login_for_access_token(
@@ -62,9 +60,10 @@ async def login_for_access_token(
         response.set_cookie(
             key="access_token",
             value=access_token,
-            httponly=False,
+            httponly=True,
             expires=30 * 24 * 60 * 60,
             samesite= "none",
+            secure=True,
         )
         
         return response
