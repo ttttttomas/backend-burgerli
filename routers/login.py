@@ -1,3 +1,4 @@
+from queue import PriorityQueue
 from fastapi import FastAPI, Depends, HTTPException, APIRouter, Response, Cookie
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
@@ -64,6 +65,7 @@ async def login_for_access_token(
             expires=30 * 24 * 60 * 60,
             samesite= "none",
             secure=True,
+            path="/",
         )
         
         return response
