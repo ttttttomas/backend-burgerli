@@ -60,7 +60,7 @@ async def login_for_access_token(
             httponly=True,
             expires=30 * 24 * 60 * 60,
             secure=os.getenv("ENV") == "production",
-            samesite= None,
+            samesite= "lax",
         )
         
         return response
