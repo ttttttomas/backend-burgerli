@@ -11,6 +11,8 @@ import os
 
 router = APIRouter()
 
+
+
 @router.post("/register")
 async def register(user: User):
     existing_user = get_user_by_username(user.username)
@@ -27,7 +29,10 @@ async def register(user: User):
         )
     return {"message": "User created successfully"}
 
+
+
 @router.post("/token")
+
 async def login_for_access_token(
     response: Response,
     form_data: OAuth2PasswordRequestForm = Depends()
@@ -59,7 +64,7 @@ async def login_for_access_token(
             value=access_token,
             httponly=True,
             expires=30 * 24 * 60 * 60,
-            samesite= None,
+            samesite= "none",
         )
         
         return response

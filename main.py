@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from routers import login
 from fastapi.middleware.cors import CORSMiddleware
+import os
 
 app = FastAPI()
 
@@ -16,6 +17,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+IS_PROD = os.getenv("ENV") == "production"
+print(IS_PROD)
 
 @app.get("/")
 async def root():
