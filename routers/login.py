@@ -64,7 +64,7 @@ async def login_for_access_token(
             httponly=True,
             max_age=30 * 24 * 60 * 60,
             samesite= "none",
-            secure=True,
+            secure=False,
             path="/",
         )
         
