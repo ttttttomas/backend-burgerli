@@ -6,6 +6,7 @@ app = FastAPI()
 
 origins = [
     "http://localhost:3000",
+    "https://cart-test-nu.vercel.app",
 ]
 
 app.add_middleware(

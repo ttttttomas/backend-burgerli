@@ -7,6 +7,7 @@ from Database.users import verify_user_credentials, get_user_by_username, create
 from Database.getConnection import engine
 from sqlalchemy import JSON, text
 import uuid
+import os
 
 router = APIRouter()
 
@@ -29,7 +30,7 @@ async def register(user: User):
 @router.post("/token")
 async def login_for_access_token(
     response: Response,
-    ACCESS_TOKEN_EXPIRE_DAYS: int = Cookie(default=30, max_age=30),
+    ACCESS_TOKEN_EXPIRE_DAYS: int = Cookie(None, max_age=30, expires=30),
     form_data: OAuth2PasswordRequestForm = Depends()
 ):
     # Verificar las credenciales
@@ -58,9 +59,7 @@ async def login_for_access_token(
             key="access_token",
             value=access_token,
             httponly=True,
-            max_age=ACCESS_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-            expires=ACCESS_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-            secure=True,
+            secure=os.getenv("ENV") == "production",
             samesite= None,
         )
         
