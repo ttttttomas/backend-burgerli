@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tu Pedido | Burgerli</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #fefefe;
+      margin: 0;
+      padding: 2rem;
+    }
+    h1 {
+      text-align: center;
+    }
+    form {
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    input, button {
+      width: 100%;
+      margin-top: 1rem;
+      padding: 0.7rem;
+    }
+    #estadoActual {
+      text-align: center;
+      margin-top: 2rem;
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+    .progreso {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 1rem;
+    }
+    .paso {
+      flex: 1;
+      padding: 0.5rem;
+      text-align: center;
+      border-bottom: 4px solid #ccc;
+    }
+    .activo {
+      border-color: #2ecc71;
+      color: #2ecc71;
+    }
+  </style>
+</head>
+<body>
+  <h1>Realizar Pedido</h1>
+
+  <form id="formPedido">
+    <label>Escribí tu pedido:</label>
+    <input type="text" id="pedido" placeholder="Ej: 1 Burger, 1 Papas, 1 Coca" required />
+    <button type="submit">Enviar Pedido</button>
+  </form>
+
+  <div id="estadoActual">Estado: <span id="estadoTexto">confirmado</span></div>
+  <div class="progreso">
+    <div class="paso" id="paso-confirmado">Confirmado</div>
+    <div class="paso" id="paso-en preparacion">En preparación</div>
+    <div class="paso" id="paso-en camino">En camino</div>
+    <div class="paso" id="paso-entregado">Entregado</div>
+  </div>
+
+  <script>
+    const form = document.getElementById("formPedido");
+    const estadoTexto = document.getElementById("estadoTexto");
+    const pasos = ["confirmado", "en preparacion", "en camino", "entregado"];
+    const progreso = {};
+
+    pasos.forEach(p => {
+      progreso[p] = document.getElementById("paso-" + p);
+    });
+
+    const token = getCookie("access_token");
+    const socket = new WebSocket(`ws://localhost:8000/ws/orders?token=${token}`);
+
+    ws.onopen = () => {
+      console.log("✅ Conectado al WebSocket desde pedido");
+    };
+
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.event === "status_update") {
+        const estado = msg.status;
+        actualizarEstado(estado);
+      }
+    };
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const pedido = document.getElementById("pedido").value;
+      ws.send(JSON.stringify({
+        event: "new_order",
+        pedido: pedido
+      }));
+      actualizarEstado("confirmado");
+      form.reset();
+    });
+
+    function actualizarEstado(estado) {
+      estadoTexto.textContent = estado;
+      pasos.forEach(p => {
+        if (progreso[p]) progreso[p].classList.remove("activo");
+      });
+      if (progreso[estado]) progreso[estado].classList.add("activo");
+    }
+  </script>
+</body>
+</html>

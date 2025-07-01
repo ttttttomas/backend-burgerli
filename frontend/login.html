@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Login</title>
+</head>
+<body>
+  <h2>Login</h2>
+  <form id="loginForm">
+    <label>Username:</label><br />
+    <input type="text" id="username" /><br /><br />
+    <label>Password:</label><br />
+    <input type="password" id="password" /><br /><br />
+    <button type="submit">Ingresar</button>
+  </form>
+
+  <p id="mensaje"></p>
+
+  <script>
+    const form = document.getElementById("loginForm");
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+
+      const formData = new FormData();
+      formData.append("username", document.getElementById("username").value);
+      formData.append("password", document.getElementById("password").value);
+
+      const res = await fetch("http://localhost:8000/token", {
+        method: "POST",
+        body: formData,
+        credentials: "include" // <- muy importante
+      });
+
+      if (res.ok) {
+        document.getElementById("mensaje").textContent = "Login exitoso.";
+        setTimeout(() => {
+          window.location.href = "http://localhost:5500/backend-burgerli/frontend/pedido.html";
+        }, 1000);
+      } else {
+        document.getElementById("mensaje").textContent = "Error en login.";
+      }
+    };
+  </script>
+</body>
+</html>

@@ -1,4 +1,5 @@
 from queue import PriorityQueue
+import re
 from fastapi import FastAPI, Depends, HTTPException, APIRouter, Response, Cookie
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
@@ -55,22 +56,24 @@ async def login_for_access_token(
         )
         
         response = JSONResponse(
-            content={"message": "Login successful, session stored in cookie.", "ID": user.id},
+            content={"message": "Login successful, session stored in cookie.", "Token": access_token, "ID": user.id},
         )
         
         response.set_cookie(
-            key="access_token",
-            value=access_token,
-            httponly=True,
-            max_age= 1000 * 60 * 60 * 24 * 30,
-            samesite= "none",
-            path="/",
-        )
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        max_age=1000 * 60 * 60 * 24 * 30,
+        samesite="lax",  # o "none" si servís el front desde otro origen
+        secure=False,    # ⚠️ en producción esto debe ser True
+        path="/",
+)
         
         return response
 
 @router.get("/protected")
 async def protected_route(username: str = Depends(get_current_user)):
+    print("🧪 Usuario autenticado:", username)
     return {"message": f"Hello, {username}! This is a protected resource."}
 
 @router.get("/logout")
