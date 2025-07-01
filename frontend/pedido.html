@@ -73,8 +73,19 @@
       progreso[p] = document.getElementById("paso-" + p);
     });
 
-    const token = getCookie("access_token");
-    const socket = new WebSocket(`ws://localhost:8000/ws/orders?token=${token}`);
+    function getUrlParameter(name) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(name);
+    }
+
+    const token = getUrlParameter('token');
+    
+    if (!token) {
+      alert('Token no encontrado. Redirigiendo al login...');
+      window.location.href = 'http://localhost:5500/frontend/login.html';
+    }
+
+    const ws = new WebSocket(`ws://localhost:8000/ws/orders?token=${token}`);
 
     ws.onopen = () => {
       console.log("✅ Conectado al WebSocket desde pedido");
@@ -88,15 +99,32 @@
       }
     };
 
+    ws.onerror = (error) => {
+      console.error("❌ Error en WebSocket:", error);
+    };
+
+    ws.onclose = (event) => {
+      console.log("🔌 WebSocket cerrado:", event.code, event.reason);
+      if (event.code === 1008) {
+        alert('Token inválido. Redirigiendo al login...');
+        window.location.href = 'http://localhost:5500/frontend/login.html';
+      }
+    };
+
     form.addEventListener("submit", (e) => {
       e.preventDefault();
       const pedido = document.getElementById("pedido").value;
-      ws.send(JSON.stringify({
-        event: "new_order",
-        pedido: pedido
-      }));
-      actualizarEstado("confirmado");
-      form.reset();
+      
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          event: "new_order",
+          pedido: pedido
+        }));
+        actualizarEstado("confirmado");
+        form.reset();
+      } else {
+        alert('Conexión WebSocket no disponible. Intenta recargar la página.');
+      }
     });
 
     function actualizarEstado(estado) {

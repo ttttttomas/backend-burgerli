@@ -9,6 +9,7 @@ router = APIRouter()
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
+        self.dashboards: Dict[str, WebSocket] = {}
 
     async def connect(self, websocket: WebSocket, user_id: str):
         await websocket.accept()
@@ -19,6 +20,14 @@ class ConnectionManager:
         if user_id in self.active_connections:
             del self.active_connections[user_id]
             print(f"❌ Desconectado {user_id}")
+        if user_id in self.dashboards:
+            del self.dashboards[user_id]
+            print(f"❌ Dashboard desconectado {user_id}")
+
+    def register_dashboard(self, user_id: str):
+        if user_id in self.active_connections:
+            self.dashboards[user_id] = self.active_connections[user_id]
+            print(f"📊 Dashboard registrado: {user_id}")
 
     async def send_personal_message(self, message: dict, user_id: str):
         if user_id in self.active_connections:
@@ -28,23 +37,27 @@ class ConnectionManager:
         for conn in self.active_connections.values():
             await conn.send_text(json.dumps(message))
 
+    async def broadcast_to_dashboards(self, message: dict):
+        for conn in self.dashboards.values():
+            await conn.send_text(json.dumps(message))
+
 
 manager = ConnectionManager()
 
 @router.websocket("/ws/orders")
 async def websocket_endpoint(websocket: WebSocket):
     token = websocket.query_params.get("token")
+    
     if not token:
-        await websocket.close(code=1008)
-        return
-
-    try:
-        user_id = await get_current_user_ws(websocket, token)
-    except:
-        await websocket.close(code=1008)
-        return
-
-    await manager.connect(websocket, user_id)
+        user_id = f"dashboard_{id(websocket)}"
+        await manager.connect(websocket, user_id)
+    else:
+        try:
+            user_id = await get_current_user_ws(websocket, token)
+            await manager.connect(websocket, user_id)
+        except:
+            await websocket.close(code=1008)
+            return
 
     try:
         while True:
@@ -55,17 +68,28 @@ async def websocket_endpoint(websocket: WebSocket):
                 print("❌ Error decodificando mensaje WebSocket")
                 continue
 
-            # Evento: nuevo pedido
-            if data.get("event") == "new_order":
+            if data.get("event") == "identify" and data.get("type") == "dashboard":
+                manager.register_dashboard(user_id)
+                print(f"📊 Dashboard identificado: {user_id}")
+
+            elif data.get("event") == "new_order":
                 pedido = data.get("pedido", {})
                 print(f"📦 Pedido recibido de {user_id}: {pedido}")
+                
                 await manager.send_personal_message({
                     "event": "status_update",
                     "status": "confirmado",
                     "pedido": pedido
                 }, user_id)
+                
+                mensaje_dashboard = {
+                    "event": "new_order",
+                    "pedido": pedido,
+                    "user_id": user_id
+                }
+                print(f"📤 Enviando a dashboards:", mensaje_dashboard)
+                await manager.broadcast_to_dashboards(mensaje_dashboard)
 
-            # Evento: cambio de estado
             elif data.get("event") == "change_status":
                 new_status = data.get("status", "")
                 target = data.get("to", "")
@@ -78,7 +102,6 @@ async def websocket_endpoint(websocket: WebSocket):
                     "pedido": pedido_data
                 }, target)
 
-                # Guardar si fue entregado
                 if new_status == "entregado":
                     try:
                         pedido_data["status"] = new_status

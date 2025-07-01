@@ -26,15 +26,43 @@
             border-left: 6px solid #007bff;
             padding: 1rem;
             box-shadow: 0 0 5px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
         }
+
+        .ticket[data-estado="confirmado"] { border-color: #007bff; }
+        .ticket[data-estado="en preparacion"] { border-color: #ffc107; }
+        .ticket[data-estado="en camino"] { border-color: #17a2b8; }
+        .ticket[data-estado="entregado"] { border-color: #28a745; }
 
         .ticket .estado {
             font-weight: bold;
             margin-bottom: 0.5rem;
         }
 
+        .ticket .acciones {
+            margin-top: 1rem;
+        }
+
         .ticket .acciones button {
             margin-right: 0.5rem;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .ticket .acciones button:hover {
+            opacity: 0.9;
+        }
+
+        .btn-preparacion { background-color: #ffc107; color: black; }
+        .btn-camino { background-color: #17a2b8; color: white; }
+        .btn-entregado { background-color: #28a745; color: white; }
+
+        .cliente-info {
+            margin-top: 0.5rem;
+            color: #666;
         }
     </style>
 </head>
@@ -46,60 +74,127 @@
     </div>
 
     <script>
-        function getCookie(name) {
-            const value = `; ${document.cookie}`;
-            const parts = value.split(`; ${name}=`);
-            if (parts.length === 2) return parts.pop().split(';').shift();
+        // Function to get URL parameters
+        function getUrlParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
         }
 
-        const token = getCookie("access_token");
-        const socket = new WebSocket(`ws://localhost:8000/ws/orders?token=${token}`);
+        // Get token from URL parameter or use empty for testing
+        const token = getUrlParameter('token') || '';
 
-        socket.onmessage = function(event) {
-            try {
-                const msg = JSON.parse(event.data);
-                if (msg.type === 'pedido') {
-                    crearTicket(msg.payload);
-                } else if (msg.type === 'actualizacion') {
-                    actualizarEstado(msg.id, msg.estado);
-                }
-            } catch (e) {
-                console.warn("Mensaje no JSON:", event.data);
+        // Create WebSocket connection with token
+        const ws = new WebSocket(`ws://localhost:8000/ws/orders?token=${token}`);
+
+        ws.onopen = () => {
+            console.log("✅ Conectado al WebSocket desde dashboard");
+            // Identificar como dashboard
+            ws.send(JSON.stringify({
+                event: "identify",
+                type: "dashboard"
+            }));
+            
+            // Prueba de creación de ticket para verificar que el DOM funciona
+            console.log("🧪 Probando creación de ticket de prueba...");
+            setTimeout(() => {
+                crearTicket("Ticket de prueba", "test_user");
+            }, 2000);
+        };
+
+        ws.onerror = (error) => {
+            console.error("❌ Error en WebSocket:", error);
+        };
+
+        ws.onclose = (event) => {
+            console.log("🔌 WebSocket cerrado:", event.code, event.reason);
+            if (event.code === 1008) {
+                alert('Token inválido. Redirigiendo al login...');
+                window.location.href = 'http://localhost:5500/frontend/login.html';
             }
         };
 
-        function crearTicket(pedido) {
+        ws.onmessage = function(event) {
+            try {
+                const msg = JSON.parse(event.data);
+                console.log("📨 Mensaje recibido en dashboard:", msg);
+
+                if (msg.event === "new_order") {
+                    console.log("🆕 Creando nuevo ticket para pedido:", msg.pedido, "Cliente:", msg.user_id);
+                    crearTicket(msg.pedido, msg.user_id);
+                } else if (msg.event === "status_update") {
+                    console.log("🔄 Actualizando estado:", msg);
+                    actualizarEstado(msg.pedido, msg.status);
+                }
+            } catch (e) {
+                console.error("❌ Error procesando mensaje:", e);
+            }
+        };
+
+        function crearTicket(pedido, clienteId) {
+            console.log("🎫 Función crearTicket llamada con:", pedido, clienteId);
+            
+            const ticketId = Date.now(); // Generamos un ID único
             const ticket = document.createElement('div');
             ticket.classList.add('ticket');
-            ticket.id = `ticket-${pedido.id}`;
+            ticket.setAttribute('data-estado', 'confirmado');
+            ticket.id = `ticket-${ticketId}`;
+            ticket.setAttribute('data-cliente', clienteId);
 
             ticket.innerHTML = `
-                <div class="estado">🕒 Estado: <span id="estado-${pedido.id}">confirmado</span></div>
-                <div><strong>Combo:</strong> ${pedido.combo}</div>
-                <div><strong>Precio:</strong> $${pedido.price}</div>
+                <div class="estado">🕒 Estado: <span id="estado-${ticketId}">confirmado</span></div>
+                <div class="pedido-info"><strong>Pedido:</strong> ${pedido}</div>
+                <div class="cliente-info"><strong>Cliente ID:</strong> ${clienteId}</div>
                 <div class="acciones">
-                    <button onclick="cambiarEstado('${pedido.id}', 'en preparación')">En preparación</button>
-                    <button onclick="cambiarEstado('${pedido.id}', 'en camino')">En camino</button>
-                    <button onclick="cambiarEstado('${pedido.id}', 'entregado')">Entregado</button>
+                    <button class="btn-preparacion" onclick="cambiarEstado('${ticketId}', '${clienteId}', 'en preparacion')">
+                        🔨 En preparación
+                    </button>
+                    <button class="btn-camino" onclick="cambiarEstado('${ticketId}', '${clienteId}', 'en camino')">
+                        🚚 En camino
+                    </button>
+                    <button class="btn-entregado" onclick="cambiarEstado('${ticketId}', '${clienteId}', 'entregado')">
+                        ✅ Entregado
+                    </button>
                 </div>
             `;
 
-            document.getElementById('tickets').appendChild(ticket);
+            const ticketsContainer = document.getElementById('tickets');
+            console.log("📦 Agregando ticket al contenedor:", ticketsContainer);
+            ticketsContainer.prepend(ticket);
+            console.log("✅ Ticket agregado exitosamente");
         }
 
-        function actualizarEstado(id, estado) {
-            const estadoSpan = document.getElementById(`estado-${id}`);
-            if (estadoSpan) {
-                estadoSpan.textContent = estado;
+        function actualizarEstado(ticketId, estado) {
+            const ticket = document.getElementById(`ticket-${ticketId}`);
+            if (ticket) {
+                const estadoSpan = ticket.querySelector(`#estado-${ticketId}`);
+                if (estadoSpan) {
+                    estadoSpan.textContent = estado;
+                }
+                ticket.setAttribute('data-estado', estado);
+
+                // Si está entregado, mover al final y agregar efecto
+                if (estado === 'entregado') {
+                    ticket.style.opacity = '0.7';
+                    document.getElementById('tickets').appendChild(ticket);
+                }
             }
         }
 
-        function cambiarEstado(id, nuevoEstado) {
-            socket.send(JSON.stringify({
-                type: "cambiar_estado",
-                id: id,
-                estado: nuevoEstado
-            }));
+        function cambiarEstado(ticketId, clienteId, nuevoEstado) {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    event: "change_status",
+                    status: nuevoEstado,
+                    to: clienteId,
+                    pedido: {
+                        id: ticketId,
+                        status: nuevoEstado
+                    }
+                }));
+                actualizarEstado(ticketId, nuevoEstado);
+            } else {
+                alert('Conexión WebSocket no disponible. Intenta recargar la página.');
+            }
         }
     </script>
 </body>

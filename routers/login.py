@@ -37,9 +37,7 @@ async def login_for_access_token(
     response: Response,
     form_data: OAuth2PasswordRequestForm = Depends()
 ):
-    # Verificar las credenciales
     if verify_user_credentials(form_data.username, form_data.password):
-        # Obtener el usuario pasando ambos parámetros
         user = get_user_by_username_and_password(
             username=form_data.username,
             password=form_data.password
