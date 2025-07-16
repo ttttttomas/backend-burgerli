@@ -11,7 +11,7 @@ router = APIRouter()
 IMAGES_DIR = "/app/images"
 DOMAIN_URL = "https://api-burgerli.iwebtecnology.com/images"
 
-@router.post("/burgers")
+@router.post("/burgers", tags=["Food"])
 async def create_burger(
     size: str = Form(...),
     description: str = Form(...),
@@ -30,7 +30,7 @@ async def create_burger(
         )
     return {"message": "Burger creada", "id": burger_id}
 
-@router.get("/burgers")
+@router.get("/burgers", tags=["Food"])
 def get_burgers():
     try:
         with engine.connect() as conn:
@@ -39,7 +39,7 @@ def get_burgers():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/fries")
+@router.post("/fries", tags=["Food"])
 async def create_fries(
     name: str = Form(...),
     size: str = Form(...),
@@ -58,7 +58,7 @@ async def create_fries(
         )
     return {"message": "Fries creadas", "id": fries_id}
 
-@router.get("/fries")
+@router.get("/fries", tags=["Food"])
 def get_fries():
     try:
         with engine.connect() as conn:
@@ -67,7 +67,7 @@ def get_fries():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/drinks")
+@router.post("/drinks", tags=["Food"])
 async def create_drinks(
     name: str = Form(...),
     size: str = Form(...),
@@ -85,7 +85,7 @@ async def create_drinks(
         )
     return {"message": "Drink creada", "id": drink_id}
 
-@router.get("/drinks")
+@router.get("/drinks", tags=["Food"])
 def get_drinks():
     try:
         with engine.connect() as conn:
@@ -94,7 +94,7 @@ def get_drinks():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/combos")
+@router.post("/combos", tags=["Combos & Promos"])
 async def create_combo(
     name: str = Form(...),
     quantity: int = Form(...),
@@ -130,7 +130,7 @@ async def create_combo(
 
     return {"message": "Combo creado", "id": combo_id}
 
-@router.get("/combos")
+@router.get("/combos", tags=["Combos & Promos"])
 def get_combos():
     try:
         with engine.connect() as conn:
@@ -145,7 +145,7 @@ def get_combos():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/promos")
+@router.post("/promos", tags=["Combos & Promos"])
 async def create_promo(
     name: str = Form(...),
     quantity: int = Form(...),
@@ -181,7 +181,7 @@ async def create_promo(
 
     return {"message": "Promo creada", "id": promo_id}
 
-@router.get("/promos")
+@router.get("/promos", tags=["Combos & Promos"])
 def get_promos():
     try:
         with engine.connect() as conn:

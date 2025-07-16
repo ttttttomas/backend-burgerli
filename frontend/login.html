@@ -28,7 +28,7 @@
       const res = await fetch("http://localhost:8000/token", {
         method: "POST",
         body: formData,
-        credentials: "include" // <- muy importante
+        credentials: "include" 
       });
 
       if (res.ok) {
@@ -36,7 +36,7 @@
         document.getElementById("mensaje").textContent = "Login exitoso.";
         setTimeout(() => {
           // Pass the token as URL parameter since httpOnly cookies can't be accessed via JS
-          window.location.href = `http://localhost:5500/backend-burgerli/frontend/pedido.html?token=${data.Token}`;
+          window.location.href = `pedido.html?token=${data.Token}`;
         }, 1000);
       } else {
         document.getElementById("mensaje").textContent = "Error en login.";

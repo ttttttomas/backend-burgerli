@@ -15,7 +15,7 @@ router = APIRouter()
 
 
 
-@router.post("/register")
+@router.post("/register", tags=["Login & Register"])
 async def register(user: User):
     existing_user = get_user_by_username(user.username)
     if existing_user:
@@ -31,7 +31,7 @@ async def register(user: User):
         )
     return {"message": "User created successfully"}
 
-@router.post("/token")
+@router.post("/token", tags=["Login & Register"])
 
 async def login_for_access_token(
     response: Response,
@@ -61,24 +61,23 @@ async def login_for_access_token(
         key="access_token",
         value=access_token,
         httponly=True,
-        max_age=1000 * 60 * 60 * 24 * 30,
-        samesite="none",  # o "none" si servís el front desde otro origen
-        secure=True,    # ⚠️ en producción esto debe ser True
+        samesite="lax",  # o "none" si servís el front desde otro origen
+        secure=False,    # ⚠️ en producción esto debe ser True
         path="/",
-)
+        )
         
         return response
 
-@router.get("/protected")
+@router.get("/protected", tags=["Login & Register"])
 async def protected_route(username: str = Depends(get_current_user)):
     print("🧪 Usuario autenticado:", username)
     return {"message": f"Hello, {username}! This is a protected resource."}
 
-@router.get("/logout")
+@router.get("/logout", tags=["Login & Register"])
 async def logout(current_user: str = Depends(get_current_user)):
     return {"message": f"Logged out {current_user}"}
 
-@router.get("/getUsers")
+@router.get("/getUsers", tags=["Login & Register"])
 async def get_users():
     try:
         with engine.begin() as conn:
@@ -90,7 +89,7 @@ async def get_users():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/getUserByID")
+@router.get("/getUserByID", tags=["Login & Register"])
 async def get_user_by_id_endpoint(id: str):
     user = get_user_by_id(id)
     if not user:
@@ -100,7 +99,7 @@ async def get_user_by_id_endpoint(id: str):
         )
     return user
 
-@router.get("/deleteUser")
+@router.get("/deleteUser", tags=["Login & Register"])
 async def delete_user_endpoint(id: str):
     success = delete_user(id)
     if not success:

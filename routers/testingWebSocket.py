@@ -14,33 +14,24 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket, user_id: str):
         await websocket.accept()
         self.active_connections[user_id] = websocket
-        print(f"🔌 Conectado {user_id}")
 
     def disconnect(self, user_id: str):
         if user_id in self.active_connections:
             del self.active_connections[user_id]
-            print(f"❌ Desconectado {user_id}")
         if user_id in self.dashboards:
             del self.dashboards[user_id]
-            print(f"❌ Dashboard desconectado {user_id}")
 
     def register_dashboard(self, user_id: str):
         if user_id in self.active_connections:
             self.dashboards[user_id] = self.active_connections[user_id]
-            print(f"📊 Dashboard registrado: {user_id}")
 
     async def send_personal_message(self, message: dict, user_id: str):
         if user_id in self.active_connections:
             await self.active_connections[user_id].send_text(json.dumps(message))
 
-    async def broadcast(self, message: dict):
-        for conn in self.active_connections.values():
-            await conn.send_text(json.dumps(message))
-
     async def broadcast_to_dashboards(self, message: dict):
         for conn in self.dashboards.values():
             await conn.send_text(json.dumps(message))
-
 
 manager = ConnectionManager()
 
@@ -65,29 +56,23 @@ async def websocket_endpoint(websocket: WebSocket):
             try:
                 data = json.loads(data_raw)
             except:
-                print("❌ Error decodificando mensaje WebSocket")
                 continue
 
             if data.get("event") == "identify" and data.get("type") == "dashboard":
                 manager.register_dashboard(user_id)
-                print(f"📊 Dashboard identificado: {user_id}")
 
             elif data.get("event") == "new_order":
                 pedido = data.get("pedido", {})
-                print(f"📦 Pedido recibido de {user_id}: {pedido}")
-                
                 await manager.send_personal_message({
                     "event": "status_update",
                     "status": "confirmado",
                     "pedido": pedido
                 }, user_id)
-                
                 mensaje_dashboard = {
                     "event": "new_order",
                     "pedido": pedido,
                     "user_id": user_id
                 }
-                print(f"📤 Enviando a dashboards:", mensaje_dashboard)
                 await manager.broadcast_to_dashboards(mensaje_dashboard)
 
             elif data.get("event") == "change_status":
@@ -95,7 +80,6 @@ async def websocket_endpoint(websocket: WebSocket):
                 target = data.get("to", "")
                 pedido_data = data.get("pedido", {})
 
-                print(f"🔄 {user_id} cambió estado a {new_status} para {target}")
                 await manager.send_personal_message({
                     "event": "status_update",
                     "status": new_status,
@@ -106,11 +90,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     try:
                         pedido_data["status"] = new_status
                         pedido_data["user_client"] = target
-                        ok = save_order_from_ws(pedido_data)
-                        print(f"✅ Pedido guardado en DB: {ok}")
+                        save_order_from_ws(pedido_data)
                     except Exception as e:
                         print(f"❌ Error al guardar pedido en DB: {e}")
 
     except WebSocketDisconnect:
         manager.disconnect(user_id)
-        print("🔌 Desconectado WebSocket")

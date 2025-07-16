@@ -15,13 +15,16 @@
       text-align: center;
     }
     form {
-      max-width: 400px;
+      max-width: 500px;
       margin: 0 auto;
     }
-    input, button {
+    input, select, textarea, button {
       width: 100%;
       margin-top: 1rem;
       padding: 0.7rem;
+    }
+    textarea {
+      resize: vertical;
     }
     #estadoActual {
       text-align: center;
@@ -50,8 +53,42 @@
   <h1>Realizar Pedido</h1>
 
   <form id="formPedido">
-    <label>Escribí tu pedido:</label>
-    <input type="text" id="pedido" placeholder="Ej: 1 Burger, 1 Papas, 1 Coca" required />
+    <label>Combo:</label>
+    <input type="text" id="combo" placeholder="ID o nombre del combo" />
+
+    <label>Método de Pago:</label>
+    <input type="text" id="payment_method" placeholder="Efectivo / MP / Tarjeta" required />
+
+    <label>Modo de Entrega:</label>
+    <input type="text" id="delivery_mode" placeholder="Delivery / Retiro" required />
+
+    <label>Precio Total:</label>
+    <input type="number" id="price" placeholder="Ej: 3500" required />
+
+    <label>Cupón:</label>
+    <input type="text" id="coupon" placeholder="Código de descuento" />
+
+    <label>Notas del Pedido:</label>
+    <textarea id="order_notes" placeholder="Sin mayonesa, extra queso, etc."></textarea>
+
+    <label>Local:</label>
+    <input type="text" id="local" placeholder="Sucursal o punto de retiro" />
+
+    <label>Hamburguesas:</label>
+    <input type="text" id="burgers" placeholder='Ej: ["Cheeseburger", "Veggie"]' required />
+
+    <label>Papas Fritas:</label>
+    <input type="text" id="fries" placeholder='Ej: ["Clásicas"]' required />
+
+    <label>Bebidas:</label>
+    <input type="text" id="drinks" placeholder='Ej: ["Coca", "Sprite"]' required />
+
+    <label>Sin:</label>
+    <input type="text" id="sin" placeholder='Ej: ["Cebolla"]' />
+
+    <label>Extra:</label>
+    <input type="text" id="extra" placeholder='Ej: ["Queso", "Bacon"]' />
+
     <button type="submit">Enviar Pedido</button>
   </form>
 
@@ -113,8 +150,22 @@
 
     form.addEventListener("submit", (e) => {
       e.preventDefault();
-      const pedido = document.getElementById("pedido").value;
-      
+
+      const pedido = {
+        combo: document.getElementById("combo").value,
+        payment_method: document.getElementById("payment_method").value,
+        delivery_mode: document.getElementById("delivery_mode").value,
+        price: parseFloat(document.getElementById("price").value),
+        coupon: document.getElementById("coupon").value,
+        order_notes: document.getElementById("order_notes").value,
+        local: document.getElementById("local").value,
+        burgers: JSON.parse(document.getElementById("burgers").value || "[]"),
+        fries: JSON.parse(document.getElementById("fries").value || "[]"),
+        drinks: JSON.parse(document.getElementById("drinks").value || "[]"),
+        sin: JSON.parse(document.getElementById("sin").value || "[]"),
+        extra: JSON.parse(document.getElementById("extra").value || "[]"),
+      };
+
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
           event: "new_order",

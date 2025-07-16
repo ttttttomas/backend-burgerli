@@ -13,3 +13,4 @@ passlib[bcrypt]
 python-multipart
 jwt
 pyjwt
+alembic
