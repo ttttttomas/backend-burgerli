@@ -11,10 +11,14 @@ class UserDB(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True)
     password = Column(String(100))
+    rol = Column(String(50))
+    local = Column(String(50))
 
 class User(BaseModel):
     username: str
     password: str
+    rol: str
+    local: str
     
     class Config:
         from_attributes = True

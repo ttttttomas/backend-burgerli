@@ -5,15 +5,13 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
 from auth.authentication import oauth2_scheme, get_current_user, create_access_token
 from models.user import User
-from Database.users import verify_user_credentials, get_user_by_username, create_user, delete_user, get_user_by_id, get_user_by_username_and_password
+from Database.users import verify_user_credentials, get_user_by_username, create_user, delete_user, get_user_by_id, get_user_by_username_and_password, update_user
 from Database.getConnection import engine
 from sqlalchemy import JSON, text
 import uuid
 import os
 
 router = APIRouter()
-
-
 
 @router.post("/register", tags=["Login & Register"])
 async def register(user: User):
@@ -98,6 +96,22 @@ async def get_user_by_id_endpoint(id: str):
             detail="User not found"
         )
     return user
+
+@router.put("/updateUser", tags=["Login & Register"])
+async def update_user_endpoint(id: str, user: User):
+    user_db = get_user_by_id(id)
+    if not user_db:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+    success = update_user(id, user.username, user.password, user.rol, user.local)
+    if not success:
+        raise HTTPException(
+            status_code=500,
+            detail="Error updating user"
+        )
+    return {"message": "User updated successfully"}
 
 @router.get("/deleteUser", tags=["Login & Register"])
 async def delete_user_endpoint(id: str):

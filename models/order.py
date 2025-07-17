@@ -6,7 +6,8 @@ class Order(Base):
     __tablename__ = "orders"
 
     id_order = Column(String(50), primary_key=True, index=True)
-    user_client = Column(String(45), ForeignKey("user_client.id_user_client"))
+    # user_client = Column(String(45), ForeignKey("user_client.id_user_client"))
+    user_client = Column(String(45))
     combo = Column(String(45), nullable=True)
     payment_method = Column(String(45))
     delivery_mode = Column(String(45))
@@ -29,7 +30,8 @@ class OrderBurger(Base):
 
     id_order_burger = Column(String(50), primary_key=True, index=True)
     id_order = Column(String(50), ForeignKey("orders.id_order"))
-    id_burger = Column(String(50), ForeignKey("burger.id_burger"))
+    # id_burger = Column(String(50), ForeignKey("burger.id_burger"))
+    id_burger = Column(String(50))
 
     order = relationship("Order", back_populates="burgers")
 
@@ -38,7 +40,8 @@ class OrderDrinks(Base):
 
     id_order_drinks = Column(String(50), primary_key=True, index=True)
     id_order = Column(String(50), ForeignKey("orders.id_order"))
-    id_drinks = Column(String(50), ForeignKey("drinks.id_drinks"))
+    # id_drinks = Column(String(50), ForeignKey("drinks.id_drinks"))
+    id_drinks = Column(String(50))
 
     order = relationship("Order", back_populates="drinks")
 
@@ -47,7 +50,8 @@ class OrderFries(Base):
 
     id_order_fries = Column(String(50), primary_key=True, index=True)
     id_order = Column(String(50), ForeignKey("orders.id_order"))
-    id_fries = Column(String(50), ForeignKey("fries.id_fries"))
+    # id_fries = Column(String(50), ForeignKey("fries.id_fries"))
+    id_fries = Column(String(50))
 
     order = relationship("Order", back_populates="fries")
 
@@ -56,7 +60,8 @@ class OrderExtra(Base):
 
     id_order_extra = Column(String(50), primary_key=True, index=True)
     id_order = Column(String(50), ForeignKey("orders.id_order"))
-    id_extra = Column(String(50), ForeignKey("extras.id_extras"))
+    # id_extra = Column(String(50), ForeignKey("extras.id_extras"))
+    id_extra = Column(String(50))
 
     order = relationship("Order", back_populates="extras")
 
@@ -65,7 +70,8 @@ class OrderSin(Base):
 
     id_order_sin = Column(String(50), primary_key=True, index=True)
     id_order = Column(String(50), ForeignKey("orders.id_order"))
-    id_sin = Column(String(50), ForeignKey("sin.id_sin"))
+    # id_sin = Column(String(50), ForeignKey("sin.id_sin"))
+    id_sin = Column(String(50))
 
     order = relationship("Order", back_populates="sins")
 
@@ -74,7 +80,8 @@ class OrderCoupons(Base):
 
     id_order_coupons = Column(String(50), primary_key=True, index=True)
     id_order = Column(String(50), ForeignKey("orders.id_order"))
-    id_coupons = Column(String(50), ForeignKey("coupons.id_coupons"))
+    # id_coupons = Column(String(50), ForeignKey("coupons.id_coupons"))
+    id_coupons = Column(String(50))
 
     order = relationship("Order", back_populates="coupons")
 
@@ -83,6 +90,7 @@ class OrderUserClient(Base):
 
     id_order_user_client = Column(String(50), primary_key=True, index=True)
     id_order = Column(String(50), ForeignKey("orders.id_order"))
-    id_user_client = Column(String(50), ForeignKey("user_client.id_user_client"))
+    # id_user_client = Column(String(50), ForeignKey("user_client.id_user_client"))
+    id_user_client = Column(String(50))
 
     order = relationship("Order", back_populates="client")

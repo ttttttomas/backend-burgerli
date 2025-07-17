@@ -107,3 +107,27 @@ def delete_user(id: str):
         return False
     finally:
         db.close()
+
+def update_user(id: str, username: str, password: str, rol: str, local: str) -> bool:
+    """
+    Actualiza los datos de un usuario en la base de datos
+    """
+    db = getConnectionForLogin()
+    if db is None:
+        return False
+    try:
+        user = db.query(UserDB).filter(UserDB.id == id).first()
+        if not user:
+            return False
+        user.username = username  # type: ignore
+        user.password = password  # type: ignore
+        user.rol = rol            # type: ignore
+        user.local = local        # type: ignore
+        db.commit()
+        return True
+    except Exception as e:
+        print(f"Error updating user: {e}")
+        db.rollback()
+        return False
+    finally:
+        db.close()

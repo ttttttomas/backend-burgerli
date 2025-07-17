@@ -19,9 +19,8 @@ from models import order  # importa tus modelos aquí
 
 # Configuración de Alembic
 config = context.config
-fileConfig(config.config_file_name)
+# fileConfig(config.config_file_name)
 target_metadata = Base.metadata
-
 
 def run_migrations_online():
     connectable = engine
