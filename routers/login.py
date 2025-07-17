@@ -1,6 +1,6 @@
 from queue import PriorityQueue
 import re
-from fastapi import FastAPI, Depends, HTTPException, APIRouter, Response, Cookie
+from fastapi import FastAPI, Depends, HTTPException, APIRouter, Response, Cookie, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
 from auth.authentication import oauth2_scheme, get_current_user, create_access_token
@@ -69,6 +69,13 @@ async def login_for_access_token(
         )
         
         return response
+
+@router.get("/verify-cookie ", tags=["Login & Register"])
+async def verify_cookie(request: Request):
+    token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(status_code=400, detail="Cookie no presente")
+    return {"status": "Cookie válida"}
 
 @router.get("/protected", tags=["Login & Register"])
 async def protected_route(username: str = Depends(get_current_user)):
