@@ -62,9 +62,8 @@ async def login_for_access_token(
         value=access_token,
         httponly=True,
         secure=True,
-        samesite=None,
+        samesite="none",
         max_age=3600,
-        domain=".iwebtecnology.com",
         path="/",
         )
         
