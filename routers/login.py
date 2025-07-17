@@ -10,6 +10,7 @@ from Database.getConnection import engine
 from sqlalchemy import JSON, text
 import uuid
 import os
+from fastapi.middleware.cors import CORSMiddleware
 
 IS_LOCAL = os.getenv("ENV") == "dev"
 
@@ -133,19 +134,19 @@ async def delete_user_endpoint(id: str):
         )
     return {"message": "User deleted successfully"}
 
-@router.get("/test-set-cookie", tags=["Test"])
-async def test_set_cookie(response: Response):
+@router.get("/test-cookies", tags=["Test"])
+async def test_cookies(request: Request):
+    return {"cookies": dict(request.cookies)}
+
+@router.post("/test-set-cookie-post", tags=["Test"])
+async def test_set_cookie_post(response: Response):
     response.set_cookie(
-        key="test_cookie",
-        value="test_value",
+        key="test_cookie_post",
+        value="test_value_post",
         httponly=False,
         secure=True,
         samesite="none",
         max_age=3600,
         path="/",
     )
-    return {"message": "Cookie de test seteada"}
-
-@router.get("/test-cookies", tags=["Test"])
-async def test_cookies(request: Request):
-    return {"cookies": dict(request.cookies)}
+    return {"message": "Cookie de test (POST) seteada"}
