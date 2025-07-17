@@ -11,6 +11,8 @@ from sqlalchemy import JSON, text
 import uuid
 import os
 
+IS_LOCAL = os.getenv("ENV") == "dev"
+
 router = APIRouter()
 
 @router.post("/register", tags=["Login & Register"])
@@ -59,8 +61,9 @@ async def login_for_access_token(
         key="access_token",
         value=access_token,
         httponly=True,
-        samesite="lax",  # o "none" si servís el front desde otro origen
-        secure=False,    # ⚠️ en producción esto debe ser True
+        secure=not IS_LOCAL,
+        samesite="none",  # 👈 para permitir cookies entre dominios distintos
+        max_age=60 * 60 * 24,
         path="/",
         )
         
