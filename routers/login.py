@@ -64,7 +64,7 @@ async def login_for_access_token(
         secure=True,
         partitioned=True,
         samesite="none",
-        max_age=36000,
+        max_age=3600,
         path="/",
         )
         
