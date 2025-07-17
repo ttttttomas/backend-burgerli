@@ -61,9 +61,8 @@ async def login_for_access_token(
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=False,
-        samesite="lax",  # 👈 para permitir cookies entre dominios distintos
-        max_age=60 * 60 * 24,
+        secure=True,
+        samesite="none",
         path="/",
         )
         
