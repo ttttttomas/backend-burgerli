@@ -132,3 +132,20 @@ async def delete_user_endpoint(id: str):
             detail="Error deleting user"
         )
     return {"message": "User deleted successfully"}
+
+@router.get("/test-set-cookie", tags=["Test"])
+async def test_set_cookie(response: Response):
+    response.set_cookie(
+        key="test_cookie",
+        value="test_value",
+        httponly=False,
+        secure=True,
+        samesite="none",
+        max_age=3600,
+        path="/",
+    )
+    return {"message": "Cookie de test seteada"}
+
+@router.get("/test-cookies", tags=["Test"])
+async def test_cookies(request: Request):
+    return {"cookies": dict(request.cookies)}
