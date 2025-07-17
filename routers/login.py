@@ -113,7 +113,7 @@ async def update_user_endpoint(id: str, user: User):
         )
     return {"message": "User updated successfully"}
 
-@router.get("/deleteUser", tags=["Login & Register"])
+@router.delete("/deleteUser", tags=["Login & Register"])
 async def delete_user_endpoint(id: str):
     success = delete_user(id)
     if not success:
