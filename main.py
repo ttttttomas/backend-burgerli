@@ -8,18 +8,18 @@ from routers.paymentController import router as payment_router
 
 app = FastAPI()
 
-# origins = [
-#     "http://localhost:3000",
-#     "https://cart-test-nu.vercel.app",
-#     "http://127.0.0.1:5500",
-#     "localhost:5500",
-#     "http://localhost:5500",
-#     "https://facudemarco.github.io",
-# ]
+origins = [
+    "http://localhost:3000",
+    "https://cart-test-nu.vercel.app",
+    "http://127.0.0.1:5500",
+    "localhost:5500",
+    "http://localhost:5500",
+    "https://facudemarco.github.io",
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://test-car-sage.vercel.app"],
+    allow_origins=["origins"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
