@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mercado Pago</title>
+  </head>
+  <body>
+    <button id="checkout">Pagar</button>
+
+    <script>
+      const checkoutButton = document.getElementById("checkout");
+      const cart = [
+    {
+      title: "caca",
+      unit_price: 100,
+      quantity: 2,
+      currency_id: "ARS",
+      picture_url: "https://www.mercadopago.com.ar/mp-assets/img/logo-mercado-pago.jpg",
+      description: "Producto de prueba"
+    },
+  ];
+
+  checkoutButton.addEventListener("click", async () => {
+    const res = await fetch("/create-order", {
+      method: "POST",
+      headers: {
+    "Content-Type": "application/json", // ✅ necesario
+  },
+      body: JSON.stringify({
+        items: cart,  // 🔥 ¡clave corregida!
+      }),
+    });
+
+    const data = await res.json();
+    window.location.href = data.init_point;
+  });
+    </script>
+  </body>
+</html>
