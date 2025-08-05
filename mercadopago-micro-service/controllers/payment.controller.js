@@ -1,6 +1,6 @@
 import { MercadoPagoConfig, Preference } from 'mercadopago'
 
-const MP_ACCESS_TOKEN= process.env.MP_ACCESS
+const MP_ACCESS_TOKEN = process.env.MP_TOKEN;
  
 export const createOrder = async (req, res) => {
 const client = new MercadoPagoConfig({accessToken: MP_ACCESS_TOKEN})
