@@ -1,2 +1,3 @@
 .env
 /venv
+mercadoPagoService/node_modules

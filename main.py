@@ -4,6 +4,7 @@ from routers import testingWebSocket as ws
 from routers.burguers import router as burger_router
 from fastapi.middleware.cors import CORSMiddleware
 import os
+from routers.paymentController import router as payment_router
 
 app = FastAPI()
 
@@ -35,3 +36,4 @@ async def root():
 app.include_router(login.router)
 app.include_router(ws.router)
 app.include_router(burger_router)
+app.include_router(payment_router)
