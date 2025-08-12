@@ -1,15 +1,10 @@
-from typing import Optional, List
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Form, Body
 from sqlalchemy import text
 from Database.getConnection import engine
 import uuid
-import os
-import shutil
+from models.users_client import UserCreate, UserUpdate, FavouriteCreate, FavouriteToggleRequest
 
 router = APIRouter()
-
-IMAGES_DIR = "/app/images"
-DOMAIN_URL = "https://api-burgerli.iwebtecnology.com/images"
 
 @router.post("/burgers", tags=["Food"])
 async def create_burger(
@@ -23,12 +18,21 @@ async def create_burger(
     burger_id = str(uuid.uuid4())
     with engine.begin() as conn:
         conn.execute(
-            text("INSERT INTO burger (id_burger, size, description, price, stock, favorite, ingredients) "
-                 "VALUES (:id, :size, :description, :price, :stock, :favorite, :ingredients)"),
-            {"id": burger_id, "size": size, "description": description, "price": price,
-             "stock": stock, "favorite": favorite, "ingredients": ingredients}
+            text("""
+                INSERT INTO burger (id_burger, size, description, price, stock, favorite, ingredients)
+                VALUES (:id, :size, :description, :price, :stock, :favorite, :ingredients)
+            """),
+            {
+                "id": burger_id,
+                "size": size,
+                "description": description,
+                "price": price,
+                "stock": stock,
+                "favorite": favorite,
+                "ingredients": ingredients,
+            },
         )
-    return {"message": "Burger creada", "id": burger_id}
+    return {"message": "Burger created", "id": burger_id}
 
 @router.get("/burgers", tags=["Food"])
 def get_burgers():
@@ -46,17 +50,26 @@ async def create_fries(
     price: float = Form(...),
     description: str = Form(...),
     stock: bool = Form(...),
-    favourite: bool = Form(...)
+    favorite: bool = Form(...)
 ):
     fries_id = str(uuid.uuid4())
     with engine.begin() as conn:
         conn.execute(
-            text("INSERT INTO fries (id_fries, name, size, price, description, stock, favourite) "
-                 "VALUES (:id, :name, :size, :price, :description, :stock, :favourite)"),
-            {"id": fries_id, "name": name, "size": size, "price": price,
-             "description": description, "stock": stock, "favourite": favourite}
+            text("""
+                INSERT INTO fries (id_fries, name, size, price, description, stock, favourite)
+                VALUES (:id, :name, :size, :price, :description, :stock, :favourite)
+            """),
+            {
+                "id": fries_id,
+                "name": name,
+                "size": size,
+                "price": price,
+                "description": description,
+                "stock": stock,
+                "favourite": favorite,  # column is 'favourite' in DB
+            },
         )
-    return {"message": "Fries creadas", "id": fries_id}
+    return {"message": "Fries created", "id": fries_id}
 
 @router.get("/fries", tags=["Food"])
 def get_fries():
@@ -73,17 +86,25 @@ async def create_drinks(
     size: str = Form(...),
     price: float = Form(...),
     stock: bool = Form(...),
-    favourite: bool = Form(...)
+    favorite: bool = Form(...)
 ):
     drink_id = str(uuid.uuid4())
     with engine.begin() as conn:
         conn.execute(
-            text("INSERT INTO drinks (id_drinks, name, size, price, stock, favourite) "
-                 "VALUES (:id, :name, :size, :price, :stock, :favourite)"),
-            {"id": drink_id, "name": name, "size": size, "price": price,
-             "stock": stock, "favourite": favourite}
+            text("""
+                INSERT INTO drinks (id_drinks, name, size, price, stock, favourite)
+                VALUES (:id, :name, :size, :price, :stock, :favourite)
+            """),
+            {
+                "id": drink_id,
+                "name": name,
+                "size": size,
+                "price": price,
+                "stock": stock,
+                "favourite": favorite,  # column is 'favourite' in DB
+            },
         )
-    return {"message": "Drink creada", "id": drink_id}
+    return {"message": "Drink created", "id": drink_id}
 
 @router.get("/drinks", tags=["Food"])
 def get_drinks():
@@ -99,48 +120,66 @@ async def create_combo(
     name: str = Form(...),
     quantity: int = Form(...),
     price: float = Form(...),
-    burgers: str = Form(...),  # IDs separados por coma
+    burgers: str = Form(...),
     fries: str = Form(...),
     drinks: str = Form(...)
 ):
     combo_id = str(uuid.uuid4())
+
+    def _split_csv(value: str):
+        return [x.strip() for x in value.split(",") if x.strip()]
+
     with engine.begin() as conn:
         conn.execute(
-            text("INSERT INTO combos (id_combos, name, quantity, price) VALUES (:id, :name, :quantity, :price)"),
-            {"id": combo_id, "name": name, "quantity": quantity, "price": price}
+            text("""
+                INSERT INTO combos (id_combos, name, quantity, price)
+                VALUES (:id, :name, :quantity, :price)
+            """),
+            {"id": combo_id, "name": name, "quantity": quantity, "price": price},
         )
 
-        for b in burgers.split(","):
+        for b in _split_csv(burgers):
             conn.execute(
-                text("INSERT INTO combo_burger (id_combo_burger, id_combo, id_burger) VALUES (:id, :combo, :burger)"),
-                {"id": str(uuid.uuid4()), "combo": combo_id, "burger": b.strip()}
+                text("""
+                    INSERT INTO combo_burger (id_combo_burger, id_combo, id_burger)
+                    VALUES (:id, :combo, :burger)
+                """),
+                {"id": str(uuid.uuid4()), "combo": combo_id, "burger": b},
             )
 
-        for f in fries.split(","):
+        for f in _split_csv(fries):
             conn.execute(
-                text("INSERT INTO combo_fries (id_combo_fries, id_combo, id_fries) VALUES (:id, :combo, :fries)"),
-                {"id": str(uuid.uuid4()), "combo": combo_id, "fries": f.strip()}
+                text("""
+                    INSERT INTO combo_fries (id_combo_fries, id_combo, id_fries)
+                    VALUES (:id, :combo, :fries)
+                """),
+                {"id": str(uuid.uuid4()), "combo": combo_id, "fries": f},
             )
 
-        for d in drinks.split(","):
+        for d in _split_csv(drinks):
             conn.execute(
-                text("INSERT INTO combo_drinks (id_combo_drinks, id_combo, id_drinks) VALUES (:id, :combo, :drinks)"),
-                {"id": str(uuid.uuid4()), "combo": combo_id, "drinks": d.strip()}
+                text("""
+                    INSERT INTO combo_drinks (id_combo_drinks, id_combo, id_drinks)
+                    VALUES (:id, :combo, :drinks)
+                """),
+                {"id": str(uuid.uuid4()), "combo": combo_id, "drinks": d},
             )
 
-    return {"message": "Combo creado", "id": combo_id}
+    return {"message": "Combo created", "id": combo_id}
 
 @router.get("/combos", tags=["Combos & Promos"])
 def get_combos():
     try:
         with engine.connect() as conn:
-            result = conn.execute(text("""
-                SELECT c.*, cb.id_burger, cf.id_fries, cd.id_drinks
-                FROM combos c
-                LEFT JOIN combo_burger cb ON cb.id_combo = c.id_combos
-                LEFT JOIN combo_fries cf ON cf.id_combo = c.id_combos
-                LEFT JOIN combo_drinks cd ON cd.id_combo = c.id_combos
-            """)).mappings().all()
+            result = conn.execute(
+                text("""
+                    SELECT c.*, cb.id_burger, cf.id_fries, cd.id_drinks
+                    FROM combos c
+                    LEFT JOIN combo_burger cb ON cb.id_combo = c.id_combos
+                    LEFT JOIN combo_fries cf ON cf.id_combo = c.id_combos
+                    LEFT JOIN combo_drinks cd ON cd.id_combo = c.id_combos
+                """)
+            ).mappings().all()
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -155,43 +194,322 @@ async def create_promo(
     drinks: str = Form(...)
 ):
     promo_id = str(uuid.uuid4())
+
+    def _split_csv(value: str):
+        return [x.strip() for x in value.split(",") if x.strip()]
+
     with engine.begin() as conn:
         conn.execute(
-            text("INSERT INTO promos (id_promos, name, quantity, price) VALUES (:id, :name, :quantity, :price)"),
-            {"id": promo_id, "name": name, "quantity": quantity, "price": price}
+            text("""
+                INSERT INTO promos (id_promos, name, quantity, price)
+                VALUES (:id, :name, :quantity, :price)
+            """),
+            {"id": promo_id, "name": name, "quantity": quantity, "price": price},
         )
 
-        for b in burgers.split(","):
+        for b in _split_csv(burgers):
             conn.execute(
-                text("INSERT INTO promo_burger (id_promo_burger, id_promo, id_burger) VALUES (:id, :promo, :burger)"),
-                {"id": str(uuid.uuid4()), "promo": promo_id, "burger": b.strip()}
+                text("""
+                    INSERT INTO promo_burger (id_promo_burger, id_promo, id_burger)
+                    VALUES (:id, :promo, :burger)
+                """),
+                {"id": str(uuid.uuid4()), "promo": promo_id, "burger": b},
             )
 
-        for f in fries.split(","):
+        for f in _split_csv(fries):
             conn.execute(
-                text("INSERT INTO promo_fries (id_promo_fries, id_promo, id_fries) VALUES (:id, :promo, :fries)"),
-                {"id": str(uuid.uuid4()), "promo": promo_id, "fries": f.strip()}
+                text("""
+                    INSERT INTO promo_fries (id_promo_fries, id_promo, id_fries)
+                    VALUES (:id, :promo, :fries)
+                """),
+                {"id": str(uuid.uuid4()), "promo": promo_id, "fries": f},
             )
 
-        for d in drinks.split(","):
+        for d in _split_csv(drinks):
             conn.execute(
-                text("INSERT INTO promo_drinks (id_promo_drinks, id_promo, id_drinks) VALUES (:id, :promo, :drinks)"),
-                {"id": str(uuid.uuid4()), "promo": promo_id, "drinks": d.strip()}
+                text("""
+                    INSERT INTO promo_drinks (id_promo_drinks, id_promo, id_drinks)
+                    VALUES (:id, :promo, :drinks)
+                """),
+                {"id": str(uuid.uuid4()), "promo": promo_id, "drinks": d},
             )
 
-    return {"message": "Promo creada", "id": promo_id}
+    return {"message": "Promo created", "id": promo_id}
 
 @router.get("/promos", tags=["Combos & Promos"])
 def get_promos():
     try:
         with engine.connect() as conn:
-            result = conn.execute(text("""
-                SELECT p.*, pb.id_burger, pf.id_fries, pd.id_drinks
-                FROM promos p
-                LEFT JOIN promo_burger pb ON pb.id_promo = p.id_promos
-                LEFT JOIN promo_fries pf ON pf.id_promo = p.id_promos
-                LEFT JOIN promo_drinks pd ON pd.id_promo = p.id_promos
-            """)).mappings().all()
+            result = conn.execute(
+                text("""
+                    SELECT p.*, pb.id_burger, pf.id_fries, pd.id_drinks
+                    FROM promos p
+                    LEFT JOIN promo_burger pb ON pb.id_promo = p.id_promos
+                    LEFT JOIN promo_fries pf ON pf.id_promo = p.id_promos
+                    LEFT JOIN promo_drinks pd ON pd.id_promo = p.id_promos
+                """)
+            ).mappings().all()
         return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/get_users", tags=["Users"])
+def get_users():
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("""
+                    SELECT id_user_client, name
+                    FROM user_client
+                """)
+            ).mappings().all()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/get_users/{id_user_client}", tags=["Users"])
+def get_user_with_favorites(id_user_client: str):
+    try:
+        with engine.connect() as conn:
+            user = conn.execute(
+                text("""
+                    SELECT id_user_client, name, email, phone, password, locality, direction, notes
+                    FROM user_client
+                    WHERE id_user_client = :id_user_client
+                """),
+                {"id_user_client": id_user_client},
+            ).mappings().first()
+
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+
+            favorites = conn.execute(
+                text("""
+                    SELECT f.favourite_id, f.status, fp.product_type, fp.product_id
+                    FROM favourites f
+                    LEFT JOIN favourites_products fp ON f.favourite_id = fp.favourite_id
+                    WHERE f.user_id = :id_user_client
+                """),
+                {"id_user_client": id_user_client},
+            ).mappings().all()
+
+        fav_map = {}
+        for fav in favorites:
+            fid = fav["favourite_id"]
+            if fid not in fav_map:
+                fav_map[fid] = {"favourite_id": fid, "status": fav["status"], "products": []}
+            if fav["product_id"]:
+                fav_map[fid]["products"].append(
+                    {"type": fav["product_type"], "id": fav["product_id"]}
+                )
+
+        return {**user, "favorites": list(fav_map.values())}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/create_user", tags=["Users"])
+def create_user(user: UserCreate):
+    try:
+        user_id = str(uuid.uuid4())
+        payload = user.model_dump()
+        with engine.begin() as conn:
+            conn.execute(
+                text("""
+                    INSERT INTO user_client (id_user_client, name, email, phone, password, locality, direction, notes)
+                    VALUES (:id_user_client, :name, :email, :phone, :password, :locality, :direction, :notes)
+                """),
+                {**payload, "id_user_client": user_id},
+            )
+        return {"message": "User created successfully", "id_user_client": user_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/mod-user/{id_user_client}", tags=["Users"])
+def update_user(id_user_client: str, user: UserUpdate):
+    try:
+        payload = user.model_dump()
+        with engine.begin() as conn:
+            result = conn.execute(
+                text("""
+                    UPDATE user_client
+                    SET name = :name,
+                        email = :email,
+                        phone = :phone,
+                        password = :password,
+                        locality = :locality,
+                        direction = :direction,
+                        notes = :notes
+                    WHERE id_user_client = :id_user_client
+                """),
+                {**payload, "id_user_client": id_user_client},
+            )
+
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        return {"message": "User updated successfully", "id_user_client": id_user_client}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/delete_user/{id_user_client}", tags=["Users"])
+def delete_user(id_user_client: str):
+    try:
+        with engine.begin() as conn:
+            result = conn.execute(
+                text("""
+                    DELETE FROM user_client
+                    WHERE id_user_client = :id_user_client
+                """),
+                {"id_user_client": id_user_client},
+            )
+
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        return {"message": "User deleted successfully", "id_user_client": id_user_client}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/users/{id_user_client}/favourites", tags=["Users"])
+def create_favourite(id_user_client: str, favourite: FavouriteCreate):
+    try:
+        with engine.begin() as conn:
+            user = conn.execute(
+                text("""
+                    SELECT id_user_client
+                    FROM user_client
+                    WHERE id_user_client = :id_user_client
+                """),
+                {"id_user_client": id_user_client},
+            ).first()
+
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+
+            favourite_id = str(uuid.uuid4())
+
+            conn.execute(
+                text("""
+                    INSERT INTO favourites (favourite_id, user_id, status)
+                    VALUES (:favourite_id, :user_id, :status)
+                """),
+                {"favourite_id": favourite_id, "user_id": id_user_client, "status": favourite.status},
+            )
+
+            for product in favourite.products:
+                conn.execute(
+                    text("""
+                        INSERT INTO favourites_products (favourite_id, product_type, product_id)
+                        VALUES (:favourite_id, :product_type, :product_id)
+                    """),
+                    {
+                        "favourite_id": favourite_id,
+                        "product_type": product.product_type,
+                        "product_id": product.product_id,
+                    },
+                )
+
+        return {"message": "Favorite created successfully", "favourite_id": favourite_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/users/{id_user_client}/favourites/toggle", tags=["Users"])
+def toggle_favourite(
+    id_user_client: str,
+    payload: FavouriteToggleRequest = Body(...)
+):
+    try:
+        with engine.begin() as conn:
+            user = conn.execute(
+                text("""
+                    SELECT id_user_client
+                    FROM user_client
+                    WHERE id_user_client = :id
+                """),
+                {"id": id_user_client},
+            ).first()
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+
+            fav = conn.execute(
+                text("""
+                    SELECT favourite_id, status
+                    FROM favourites
+                    WHERE user_id = :uid
+                    ORDER BY favourite_id ASC
+                    LIMIT 1
+                """),
+                {"uid": id_user_client},
+            ).mappings().first()
+
+            if not fav:
+                favourite_id = str(uuid.uuid4())
+                conn.execute(
+                    text("""
+                        INSERT INTO favourites (favourite_id, user_id, status)
+                        VALUES (:fid, :uid, :status)
+                    """),
+                    {"fid": favourite_id, "uid": id_user_client, "status": "active"},
+                )
+            else:
+                favourite_id = fav["favourite_id"]
+
+            existing = conn.execute(
+                text("""
+                    SELECT 1
+                    FROM favourites_products
+                    WHERE favourite_id = :fid
+                      AND product_type = :ptype
+                      AND product_id = :pid
+                    LIMIT 1
+                """),
+                {
+                    "fid": favourite_id,
+                    "ptype": payload.product_type,
+                    "pid": payload.product_id,
+                },
+            ).first()
+
+            if existing:
+                conn.execute(
+                    text("""
+                        DELETE FROM favourites_products
+                        WHERE favourite_id = :fid
+                          AND product_type = :ptype
+                          AND product_id = :pid
+                    """),
+                    {
+                        "fid": favourite_id,
+                        "ptype": payload.product_type,
+                        "pid": payload.product_id,
+                    },
+                )
+                return {
+                    "message": "Removed from favorites",
+                    "favourite_id": favourite_id,
+                    "favorited": False,
+                    "product": payload.model_dump(),
+                }
+            else:
+                conn.execute(
+                    text("""
+                        INSERT INTO favourites_products (favourite_id, product_type, product_id)
+                        VALUES (:fid, :ptype, :pid)
+                    """),
+                    {
+                        "fid": favourite_id,
+                        "ptype": payload.product_type,
+                        "pid": payload.product_id,
+                    },
+                )
+                return {
+                    "message": "Added to favorites",
+                    "favourite_id": favourite_id,
+                    "favorited": True,
+                    "product": payload.model_dump(),
+                }
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
