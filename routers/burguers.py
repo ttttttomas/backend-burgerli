@@ -1,4 +1,6 @@
-from fastapi import APIRouter, HTTPException, Form, Body
+from fastapi import APIRouter, HTTPException, Form, Body, UploadFile, File
+import os
+import shutil
 from sqlalchemy import text
 from Database.getConnection import engine
 import uuid
@@ -6,21 +8,24 @@ from models.users_client import UserCreate, UserUpdate, FavouriteCreate, Favouri
 
 router = APIRouter()
 
+IMAGES_DIR = "images/"
+DOMAIN_URL = "http://api-burgerli.iwebtecnology.com/images"
+
 @router.post("/burgers", tags=["Food"])
 async def create_burger(
     size: str = Form(...),
     description: str = Form(...),
     price: str = Form(...),
     stock: bool = Form(...),
-    favorite: bool = Form(...),
-    ingredients: str = Form(...)
+    ingredients: str = Form(...),
+    main_image: UploadFile = File(..., description="Main image")
 ):
     burger_id = str(uuid.uuid4())
     with engine.begin() as conn:
         conn.execute(
             text("""
-                INSERT INTO burger (id_burger, size, description, price, stock, favorite, ingredients)
-                VALUES (:id, :size, :description, :price, :stock, :favorite, :ingredients)
+                INSERT INTO burger (id_burger, size, description, price, stock, ingredients)
+                VALUES (:id, :size, :description, :price, :stock, :ingredients)
             """),
             {
                 "id": burger_id,
@@ -28,18 +33,44 @@ async def create_burger(
                 "description": description,
                 "price": price,
                 "stock": stock,
-                "favorite": favorite,
                 "ingredients": ingredients,
             },
         )
-    return {"message": "Burger created", "id": burger_id}
+
+    if not os.path.exists(IMAGES_DIR):
+        os.makedirs(IMAGES_DIR, exist_ok=True)
+    ext = os.path.splitext(main_image.filename or "file.jpg")[1]
+    fname = f"{uuid.uuid4()}{ext}"
+    path = os.path.join(IMAGES_DIR, fname)
+    with open(path, "wb") as buf:
+        shutil.copyfileobj(main_image.file, buf)
+    url_main = f"{DOMAIN_URL}/{fname}"
+    with engine.begin() as conn:
+        conn.execute(
+            text("INSERT INTO burger_main_imgs (id, burger_id, url) VALUES (:id, :burger_id, :url)"),
+            {"id": str(uuid.uuid4()), "burger_id": burger_id, "url": url_main}
+        )
+    return {"message": "Burger created", "id": burger_id, "main_image_url": url_main}
 
 @router.get("/burgers", tags=["Food"])
 def get_burgers():
     try:
-        with engine.connect() as conn:
-            result = conn.execute(text("SELECT * FROM burger")).mappings().all()
-        return result
+        with engine.begin() as conn:
+            result = conn.execute(text("SELECT * FROM burger"))
+            rows = result.mappings().all()
+            if not rows:
+                raise HTTPException(status_code=404, detail="No burger found.")
+            burgers = []
+            for burger in rows:
+                hid = burger["id_burger"]
+                main = conn.execute(
+                    text("SELECT url FROM burger_main_imgs WHERE burger_id = :id"),
+                    {"id": hid}
+                ).fetchone()
+                data = dict(burger)
+                data["main_image"] = main[0] if main else None
+                burgers.append(data)
+            return burgers
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -47,17 +78,17 @@ def get_burgers():
 async def create_fries(
     name: str = Form(...),
     size: str = Form(...),
-    price: float = Form(...),
     description: str = Form(...),
+    price: str = Form(...),
     stock: bool = Form(...),
-    favorite: bool = Form(...)
+    main_image: UploadFile = File(..., description="Main image")
 ):
     fries_id = str(uuid.uuid4())
     with engine.begin() as conn:
         conn.execute(
             text("""
-                INSERT INTO fries (id_fries, name, size, price, description, stock, favourite)
-                VALUES (:id, :name, :size, :price, :description, :stock, :favourite)
+                INSERT INTO fries (id_fries, name, size, price, description, stock)
+                VALUES (:id, :name, :size, :price, :description, :stock)
             """),
             {
                 "id": fries_id,
@@ -66,17 +97,43 @@ async def create_fries(
                 "price": price,
                 "description": description,
                 "stock": stock,
-                "favourite": favorite,  # column is 'favourite' in DB
             },
         )
-    return {"message": "Fries created", "id": fries_id}
+
+    if not os.path.exists(IMAGES_DIR):
+        os.makedirs(IMAGES_DIR, exist_ok=True)
+    ext = os.path.splitext(main_image.filename or "file.jpg")[1]
+    fname = f"{uuid.uuid4()}{ext}"
+    path = os.path.join(IMAGES_DIR, fname)
+    with open(path, "wb") as buf:
+        shutil.copyfileobj(main_image.file, buf)
+    url_main = f"{DOMAIN_URL}/{fname}"
+    with engine.begin() as conn:
+        conn.execute(
+            text("INSERT INTO fries_main_imgs (id, fries_id, url) VALUES (:id, :fries_id, :url)"),
+            {"id": str(uuid.uuid4()), "fries_id": fries_id, "url": url_main}
+        )
+    return {"message": "Fries created", "id": fries_id, "main_image_url": url_main}
 
 @router.get("/fries", tags=["Food"])
 def get_fries():
     try:
-        with engine.connect() as conn:
-            result = conn.execute(text("SELECT * FROM fries")).mappings().all()
-        return result
+        with engine.begin() as conn:
+            result = conn.execute(text("SELECT * FROM fries"))
+            rows = result.mappings().all()
+            if not rows:
+                raise HTTPException(status_code=404, detail="No fries found.")
+            fries = []
+            for fries in rows:
+                hid = fries["id_fries"]
+                main = conn.execute(
+                    text("SELECT url FROM fries_main_imgs WHERE fries_id = :id"),
+                    {"id": hid}
+                ).fetchone()
+                data = dict(fries)
+                data["main_image"] = main[0] if main else None
+                fries.append(data)
+            return fries
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -84,34 +141,60 @@ def get_fries():
 async def create_drinks(
     name: str = Form(...),
     size: str = Form(...),
-    price: float = Form(...),
+    price: str = Form(...),
     stock: bool = Form(...),
-    favorite: bool = Form(...)
+    main_image: UploadFile = File(..., description="Main image")
 ):
-    drink_id = str(uuid.uuid4())
+    drinks_id = str(uuid.uuid4())
     with engine.begin() as conn:
         conn.execute(
             text("""
-                INSERT INTO drinks (id_drinks, name, size, price, stock, favourite)
-                VALUES (:id, :name, :size, :price, :stock, :favourite)
+                INSERT INTO drinks (id_drinks, name, size, price, stock)
+                VALUES (:id, :name, :size, :price, :stock)
             """),
             {
-                "id": drink_id,
+                "id": drinks_id,
                 "name": name,
                 "size": size,
                 "price": price,
                 "stock": stock,
-                "favourite": favorite,  # column is 'favourite' in DB
             },
         )
-    return {"message": "Drink created", "id": drink_id}
+
+    if not os.path.exists(IMAGES_DIR):
+        os.makedirs(IMAGES_DIR, exist_ok=True)
+    ext = os.path.splitext(main_image.filename or "file.jpg")[1]
+    fname = f"{uuid.uuid4()}{ext}"
+    path = os.path.join(IMAGES_DIR, fname)
+    with open(path, "wb") as buf:
+        shutil.copyfileobj(main_image.file, buf)
+    url_main = f"{DOMAIN_URL}/{fname}"
+    with engine.begin() as conn:
+        conn.execute(
+            text("INSERT INTO drinks_main_imgs (id, drinks_id, url) VALUES (:id, :drinks_id, :url)"),
+            {"id": str(uuid.uuid4()), "drinks_id": drinks_id, "url": url_main}
+        )
+    return {"message": "Drinks created", "id": drinks_id, "main_image_url": url_main}
 
 @router.get("/drinks", tags=["Food"])
 def get_drinks():
     try:
-        with engine.connect() as conn:
-            result = conn.execute(text("SELECT * FROM drinks")).mappings().all()
-        return result
+        with engine.begin() as conn:
+            result = conn.execute(text("SELECT * FROM drinks"))
+            rows = result.mappings().all()
+            if not rows:
+                raise HTTPException(status_code=404, detail="No drinks found.")
+            drinks = []
+            for drinks in rows:
+                hid = drinks["id_drinks"]
+                main = conn.execute(
+                    text("SELECT url FROM drinks_main_imgs WHERE drinks_id = :id"),
+                    {"id": hid}
+                ).fetchone()
+                data = dict(drinks)
+                data["main_image"] = main[0] if main else None
+                drinks.append(data)
+            return drinks
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
