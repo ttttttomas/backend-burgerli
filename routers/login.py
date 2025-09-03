@@ -65,7 +65,7 @@ async def login_for_access_token(
         secure=False if IS_LOCAL else True,
         samesite="lax" if IS_LOCAL else "none",
         max_age=3600,
-        domain="localhost" if IS_LOCAL else "burgerli.com",
+        domain="localhost" if IS_LOCAL else "https://cart-test-nu.vercel.app",
         path="/",
         )
         
@@ -152,7 +152,7 @@ async def test_set_cookie_post(response: Response):
         secure=False if IS_LOCAL else True,
         samesite="lax" if IS_LOCAL else "none",
         max_age=3600,
-        domain="localhost" if IS_LOCAL else "burgerli.com",
+        domain="localhost" if IS_LOCAL else "https://cart-test-nu.vercel.app",
         path="/",
     )
     return {"message": "Cookie de test (POST) seteada"}
