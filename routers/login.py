@@ -60,7 +60,7 @@ async def login_for_access_token(
         
         response.set_cookie(
         key="access_token" if IS_LOCAL else "Authorization",
-        value= f"Bearer {access_token}",
+        value= access_token,
         httponly=False if IS_LOCAL else True,
         secure=False if IS_LOCAL else True,
         samesite="lax" if IS_LOCAL else "none",
@@ -147,7 +147,7 @@ async def test_set_cookie_post(response: Response):
 
     response.set_cookie(
         key="access_token" if IS_LOCAL else "Authorization",
-        value=f"Bearer {access_token}",
+        value=access_token,
         httponly=False if IS_LOCAL else True,
         secure=False if IS_LOCAL else True,
         samesite="lax" if IS_LOCAL else "none",
