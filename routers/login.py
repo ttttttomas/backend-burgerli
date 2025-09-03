@@ -62,9 +62,10 @@ async def login_for_access_token(
         key="access_token",
         value=access_token,
         httponly=False,
-        secure=True,
+        secure=False,
         samesite="none",
         max_age=3600,
+        domain="localhost",
         path="/",
         )
         
