@@ -33,9 +33,7 @@ async def register(user: User):
     return {"message": "User created successfully"}
 
 @router.post("/token", tags=["Login & Register"])
-
 async def login_for_access_token(
-    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends()
 ):
     if verify_user_credentials(form_data.username, form_data.password):
@@ -43,32 +41,27 @@ async def login_for_access_token(
             username=form_data.username,
             password=form_data.password
         )
-        
         if user is None:
             raise HTTPException(
                 status_code=400,
-                detail="User  not found after verification"
+                detail="User not found after verification"
             )
-        
         access_token = create_access_token(
             data={"sub": form_data.username}
         )
-        
         response = JSONResponse(
             content={"message": "Login successful, session stored in cookie.", "Token": access_token, "ID": user.id},
         )
-        
         response.set_cookie(
-        key="access_token" if IS_LOCAL else "Authorization",
-        value= access_token,
-        httponly=False if IS_LOCAL else True,
-        secure=False if IS_LOCAL else True,
-        samesite="lax" if IS_LOCAL else "none",
-        max_age=3600,
-        domain="localhost" if IS_LOCAL else "https://cart-test-nu.vercel.app",
-        path="/",
+            key="access_token" if IS_LOCAL else "Authorization",
+            value=access_token,
+            httponly=False if IS_LOCAL else True,
+            secure=False if IS_LOCAL else True,
+            samesite="lax" if IS_LOCAL else "none",
+            max_age=3600,
+            domain="localhost" if IS_LOCAL else "cart-test-nu.vercel.app",  # <--- CORREGIDO
+            path="/",
         )
-        
         return response
 
 @router.get("/verify-cookie ", tags=["Login & Register"])
@@ -140,11 +133,11 @@ async def test_cookies(request: Request):
     return {"cookies": dict(request.cookies)}
 
 @router.post("/test-set-cookie-post", tags=["Test"])
-async def test_set_cookie_post(response: Response):
+async def test_set_cookie_post():
     access_token = create_access_token(
         data={"sub": "testuser"}
     )
-
+    response = JSONResponse({"message": "Cookie de test (POST) seteada"})
     response.set_cookie(
         key="access_token" if IS_LOCAL else "Authorization",
         value=access_token,
@@ -152,7 +145,7 @@ async def test_set_cookie_post(response: Response):
         secure=False if IS_LOCAL else True,
         samesite="lax" if IS_LOCAL else "none",
         max_age=3600,
-        domain="localhost" if IS_LOCAL else "https://cart-test-nu.vercel.app",
+        domain="localhost" if IS_LOCAL else "cart-test-nu.vercel.app",  # <--- CORREGIDO
         path="/",
     )
-    return {"message": "Cookie de test (POST) seteada"}
+    return response
