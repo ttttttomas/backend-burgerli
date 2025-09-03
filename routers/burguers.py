@@ -1,3 +1,4 @@
+from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Form, Body, UploadFile, File
 import os
 import shutil
@@ -13,28 +14,81 @@ DOMAIN_URL = "http://api-burgerli.iwebtecnology.com/images"
 
 @router.post("/burgers", tags=["Food"])
 async def create_burger(
-    size: str = Form(...),
-    description: str = Form(...),
     price: str = Form(...),
     stock: bool = Form(...),
-    ingredients: str = Form(...),
-    main_image: UploadFile = File(..., description="Main image")
+    main_image: UploadFile = File(..., description="Main image"),
+    size: List[str] = Form(default=[]),
+    description: List[str] = Form(default=[]),
+    ingredients: List[str] = Form(default=[]),      
 ):
     burger_id = str(uuid.uuid4())
     with engine.begin() as conn:
         conn.execute(
             text("""
-                INSERT INTO burger (id_burger, size, description, price, stock, ingredients)
-                VALUES (:id, :size, :description, :price, :stock, :ingredients)
+                INSERT INTO burger (id_burger, price, stock)
+                VALUES (:id, :price, :stock)
             """),
             {
                 "id": burger_id,
-                "size": size,
-                "description": description,
                 "price": price,
                 "stock": stock,
-                "ingredients": ingredients,
             },
+        )
+
+    # Insert size
+    normalized_size = []
+    for d in size:
+        if isinstance(d, str) and "," in d:
+            normalized_size.extend([item.strip() for item in d.split(",") if item.strip()])
+        elif d:
+            normalized_size.append(d.strip())
+    
+    for d in normalized_size:
+        if not d:
+            continue
+        conn.execute(
+            text("""
+                INSERT INTO burger_size (id, burger_id, size)
+                VALUES (:id, :burger_id, :size)
+            """),
+            {"id": str(uuid.uuid4()), "burger_id": burger_id, "size": d}
+        )
+    
+    # Insert description
+    normalized_description = []
+    for d in description:
+        if isinstance(d, str) and "," in d:
+            normalized_description.extend([item.strip() for item in d.split(",") if item.strip()])
+        elif d:
+            normalized_description.append(d.strip())
+    
+    for d in normalized_description:
+        if not d:
+            continue
+        conn.execute(
+            text("""
+                INSERT INTO burger_description (id, burger_id, description)
+                VALUES (:id, :burger_id, :description)
+            """),
+            {"id": str(uuid.uuid4()), "burger_id": burger_id, "description": d}
+        )
+    
+    # Insert ingredients
+    normalized_ingredients = []
+    for d in ingredients:
+        if isinstance(d, str) and "," in d:
+            normalized_ingredients.extend([item.strip() for item in d.split(",") if item.strip()])
+        elif d:
+            normalized_ingredients.append(d.strip())
+    for d in normalized_ingredients:
+        if not d:
+            continue
+        conn.execute(
+            text("""
+                INSERT INTO burger_ingredients (id, burger_id, ingredients)
+                VALUES (:id, :burger_id, :ingredients)
+            """),
+            {"id": str(uuid.uuid4()), "burger_id": burger_id, "ingredients": d}
         )
 
     if not os.path.exists(IMAGES_DIR):
@@ -67,8 +121,27 @@ def get_burgers():
                     text("SELECT url FROM burger_main_imgs WHERE burger_id = :id"),
                     {"id": hid}
                 ).fetchone()
+
+                size_list = conn.execute(
+                    text("SELECT size FROM burger_size WHERE burger_id = :id"),
+                    {"id": hid}
+                ).scalars().all()
+
+                description_list = conn.execute(
+                    text("SELECT description FROM burger_description WHERE burger_id = :id"),
+                    {"id": hid}
+                ).scalars().all()
+
+                ingredients_list = conn.execute(
+                    text("SELECT ingredients FROM burger_ingredients WHERE burger_id = :id"),
+                    {"id": hid}
+                ).scalars().all()
+
                 data = dict(burger)
                 data["main_image"] = main[0] if main else None
+                data["size_list"] = size_list
+                data["description_list"] = description_list
+                data["ingredients_list"] = ingredients_list
                 burgers.append(data)
             return burgers
     except Exception as e:
@@ -77,8 +150,8 @@ def get_burgers():
 @router.post("/fries", tags=["Food"])
 async def create_fries(
     name: str = Form(...),
-    size: str = Form(...),
-    description: str = Form(...),
+    size: List[str] = Form(default=[]),
+    description: List[str] = Form(default=[]),
     price: str = Form(...),
     stock: bool = Form(...),
     main_image: UploadFile = File(..., description="Main image")
@@ -87,17 +160,51 @@ async def create_fries(
     with engine.begin() as conn:
         conn.execute(
             text("""
-                INSERT INTO fries (id_fries, name, size, price, description, stock)
-                VALUES (:id, :name, :size, :price, :description, :stock)
+                INSERT INTO fries (id_fries, name, price, stock)
+                VALUES (:id, :name, :price, :stock)
             """),
             {
                 "id": fries_id,
                 "name": name,
-                "size": size,
                 "price": price,
-                "description": description,
                 "stock": stock,
             },
+        )
+    
+    # Insert size
+    normalized_size = []
+    for d in size:
+        if isinstance(d, str) and "," in d:
+            normalized_size.extend([item.strip() for item in d.split(",") if item.strip()])
+        elif d:
+            normalized_size.append(d.strip())
+    for d in normalized_size:
+        if not d:
+            continue
+        conn.execute(
+            text("""
+                INSERT INTO fries_size (id, fries_id, size)
+                VALUES (:id, :fries_id, :size)
+            """),
+            {"id": str(uuid.uuid4()), "fries_id": fries_id, "size": d}
+        )
+    
+    # Insert description
+    normalized_description = []
+    for d in description:
+        if isinstance(d, str) and "," in d:
+            normalized_description.extend([item.strip() for item in d.split(",") if item.strip()])
+        elif d:
+            normalized_description.append(d.strip())
+    for d in normalized_description:
+        if not d:
+            continue
+        conn.execute(
+            text("""
+                INSERT INTO fries_description (id, fries_id, description)
+                VALUES (:id, :fries_id, :description)
+            """),
+            {"id": str(uuid.uuid4()), "fries_id": fries_id, "description": d}
         )
 
     if not os.path.exists(IMAGES_DIR):
@@ -130,8 +237,21 @@ def get_fries():
                     text("SELECT url FROM fries_main_imgs WHERE fries_id = :id"),
                     {"id": hid}
                 ).fetchone()
+
+                size_list = conn.execute(
+                    text("SELECT size FROM fries_size WHERE fries_id = :id"),
+                    {"id": hid}
+                ).scalars().all()
+
+                description_list = conn.execute(
+                    text("SELECT description FROM fries_description WHERE fries_id = :id"),
+                    {"id": hid}
+                ).scalars().all()
+
                 data = dict(fries)
                 data["main_image"] = main[0] if main else None
+                data["size_list"] = size_list
+                data["description_list"] = description_list
                 fries.append(data)
             return fries
     except Exception as e:
@@ -140,9 +260,9 @@ def get_fries():
 @router.post("/drinks", tags=["Food"])
 async def create_drinks(
     name: str = Form(...),
-    size: str = Form(...),
     price: str = Form(...),
     stock: bool = Form(...),
+    size: List[str] = Form(default=[]),
     main_image: UploadFile = File(..., description="Main image")
 ):
     drinks_id = str(uuid.uuid4())
@@ -155,10 +275,27 @@ async def create_drinks(
             {
                 "id": drinks_id,
                 "name": name,
-                "size": size,
                 "price": price,
                 "stock": stock,
             },
+        )
+    
+    # Insert size
+    normalized_size = []
+    for d in size:
+        if isinstance(d, str) and "," in d:
+            normalized_size.extend([item.strip() for item in d.split(",") if item.strip()])
+        elif d:
+            normalized_size.append(d.strip())
+    for d in normalized_size:
+        if not d:
+            continue
+        conn.execute(
+            text("""
+                INSERT INTO drinks_size (id, drinks_id, size)
+                VALUES (:id, :drinks_id, :size)
+            """),
+            {"id": str(uuid.uuid4()), "drinks_id": drinks_id, "size": d}
         )
 
     if not os.path.exists(IMAGES_DIR):
@@ -191,8 +328,15 @@ def get_drinks():
                     text("SELECT url FROM drinks_main_imgs WHERE drinks_id = :id"),
                     {"id": hid}
                 ).fetchone()
+
+                size_list = conn.execute(
+                    text("SELECT size FROM drinks_size WHERE drinks_id = :id"),
+                    {"id": hid}
+                ).scalars().all()
+
                 data = dict(drinks)
                 data["main_image"] = main[0] if main else None
+                data["size_list"] = size_list
                 drinks.append(data)
             return drinks
     except Exception as e:
@@ -594,5 +738,18 @@ def toggle_favourite(
 
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@router.get("/get_orders", tags=["Default"])
+def get_orders():
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("""
+                    SELECT * FROM orders
+                     """)
+            ).mappings().all()
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
