@@ -59,13 +59,13 @@ async def login_for_access_token(
         )
         
         response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=False,
-        secure=False,
-        samesite="none",
+        key="access_token" if IS_LOCAL else "Authorization",
+        value= f"Bearer {access_token}",
+        httponly=False if IS_LOCAL else True,
+        secure=False if IS_LOCAL else True,
+        samesite="lax" if IS_LOCAL else "none",
         max_age=3600,
-        domain="localhost",
+        domain="localhost" if IS_LOCAL else "burgerli.com",
         path="/",
         )
         
@@ -141,13 +141,18 @@ async def test_cookies(request: Request):
 
 @router.post("/test-set-cookie-post", tags=["Test"])
 async def test_set_cookie_post(response: Response):
+    access_token = create_access_token(
+        data={"sub": "testuser"}
+    )
+
     response.set_cookie(
-        key="test_cookie_post",
-        value="test_value_post",
-        httponly=False,
-        secure=True,
-        samesite="none",
+        key="access_token" if IS_LOCAL else "Authorization",
+        value=f"Bearer {access_token}",
+        httponly=False if IS_LOCAL else True,
+        secure=False if IS_LOCAL else True,
+        samesite="lax" if IS_LOCAL else "none",
         max_age=3600,
+        domain="localhost" if IS_LOCAL else "burgerli.com",
         path="/",
     )
     return {"message": "Cookie de test (POST) seteada"}
