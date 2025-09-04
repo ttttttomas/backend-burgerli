@@ -53,13 +53,13 @@ async def login_for_access_token(
             content={"message": "Login successful, session stored in cookie.", "Token": access_token, "ID": user.id},
         )
         response.set_cookie(
-            key="access_token" if IS_LOCAL else "Authorization",
+            key="Authorization",
             value=access_token,
-            httponly=False if IS_LOCAL else True,
-            secure=False if IS_LOCAL else True,
-            samesite="lax" if IS_LOCAL else "none",
+            httponly=True,
+            secure=True,
+            samesite="none"
             max_age=3600,
-            domain="localhost" if IS_LOCAL else "cart-test-nu.vercel.app",  # <--- CORREGIDO
+            # domain="localhost" if IS_LOCAL else "api-burgerli.iwebtecnology.com",  # <--- CORREGIDO
             path="/",
         )
         return response
@@ -145,7 +145,7 @@ async def test_set_cookie_post():
         secure=False if IS_LOCAL else True,
         samesite="lax" if IS_LOCAL else "none",
         max_age=3600,
-        domain="localhost" if IS_LOCAL else "cart-test-nu.vercel.app",  # <--- CORREGIDO
+        domain="localhost" if IS_LOCAL else "api-burgerli.iwebtecnology.com",  # <--- CORREGIDO
         path="/",
     )
     return response
