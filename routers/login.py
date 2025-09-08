@@ -66,7 +66,7 @@ async def login_for_access_token(
 
 @router.get("/verify-cookie ", tags=["Login & Register"])
 async def verify_cookie(request: Request):
-    token = request.cookies.get("access_token")
+    token = request.cookies.get("access_token"),
     if not token:
         raise HTTPException(status_code=400, detail="Cookie no presente")
     return {"status": "Cookie válida"}
