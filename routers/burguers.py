@@ -16,6 +16,7 @@ DOMAIN_URL = "http://api-burgerli.iwebtecnology.com/images"
 async def create_burger(
     price: str = Form(...),
     stock: bool = Form(...),
+    name: str = Form(...),
     main_image: UploadFile = File(..., description="Main image"),
     size: List[str] = Form(default=[]),
     description: List[str] = Form(default=[]),
@@ -25,11 +26,12 @@ async def create_burger(
     with engine.begin() as conn:
         conn.execute(
             text("""
-                INSERT INTO burger (id_burger, price, stock)
-                VALUES (:id, :price, :stock)
+                INSERT INTO burger (id_burger, name, price, stock)
+                VALUES (:id, :name, :price, :stock)
             """),
             {
                 "id": burger_id,
+                "name": name,
                 "price": price,
                 "stock": stock,
             },
