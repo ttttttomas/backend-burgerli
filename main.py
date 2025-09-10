@@ -5,6 +5,7 @@ from routers.burguers import router as burger_router
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from routers.paymentController import router as payment_router
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(root_path="/api")
 
@@ -27,6 +28,9 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["Set-Cookie"],
 )
+
+IMAGES_DIR = os.path.join(os.getcwd(), "images")
+app.mount("/api/images", StaticFiles(directory=IMAGES_DIR), name="images")
 
 IS_PROD = os.getenv("ENV") == "production"
 print(IS_PROD)
