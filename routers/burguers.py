@@ -9,7 +9,7 @@ from models.users_client import UserCreate, UserUpdate, FavouriteCreate, Favouri
 
 router = APIRouter()
 
-IMAGES_DIR = "images/"
+IMAGES_DIR = "api/images/"
 DOMAIN_URL = "http://api-burgerli.iwebtecnology.com/api/images"
 
 @router.post("/burgers", tags=["Food"])
@@ -23,58 +23,24 @@ async def create_burger(
     ingredients: List[str] = Form(default=[]),      
 ):
     burger_id = str(uuid.uuid4())
-    with engine.begin() as conn:
-        conn.execute(
-            text("""
-                INSERT INTO burger (id_burger, name, price, stock, description)
-                VALUES (:id, :name, :price, :stock, :description)
-            """),
-            {
-                "id": burger_id,
-                "name": name,
-                "price": price,
-                "stock": stock,
-                "description": description
-            },
-        )
 
-    # Insert size
+    # Normalizar sizes
     normalized_size = []
     for d in size:
         if isinstance(d, str) and "," in d:
             normalized_size.extend([item.strip() for item in d.split(",") if item.strip()])
         elif d:
             normalized_size.append(d.strip())
-    
-    for d in normalized_size:
-        if not d:
-            continue
-        conn.execute(
-            text("""
-                INSERT INTO burger_size (id, burger_id, size)
-                VALUES (:id, :burger_id, :size)
-            """),
-            {"id": str(uuid.uuid4()), "burger_id": burger_id, "size": d}
-        )
-    
-    # Insert ingredients
+
+    # Normalizar ingredientes
     normalized_ingredients = []
     for d in ingredients:
         if isinstance(d, str) and "," in d:
             normalized_ingredients.extend([item.strip() for item in d.split(",") if item.strip()])
         elif d:
             normalized_ingredients.append(d.strip())
-    for d in normalized_ingredients:
-        if not d:
-            continue
-        conn.execute(
-            text("""
-                INSERT INTO burger_ingredients (id, burger_id, ingredients)
-                VALUES (:id, :burger_id, :ingredients)
-            """),
-            {"id": str(uuid.uuid4()), "burger_id": burger_id, "ingredients": d}
-        )
 
+    # Guardar imagen
     if not os.path.exists(IMAGES_DIR):
         os.makedirs(IMAGES_DIR, exist_ok=True)
     ext = os.path.splitext(main_image.filename or "file.jpg")[1]
@@ -83,11 +49,38 @@ async def create_burger(
     with open(path, "wb") as buf:
         shutil.copyfileobj(main_image.file, buf)
     url_main = f"{DOMAIN_URL}/{fname}"
+
+    # Un solo bloque con la conexión
     with engine.begin() as conn:
+        # Insert burger
+        conn.execute(
+            text("""
+                INSERT INTO burger (id_burger, name, price, stock, description)
+                VALUES (:id, :name, :price, :stock, :description)
+            """),
+            {"id": burger_id, "name": name, "price": price, "stock": stock, "description": description},
+        )
+
+        # Insert sizes
+        for d in normalized_size:
+            conn.execute(
+                text("INSERT INTO burger_size (id, burger_id, size) VALUES (:id, :burger_id, :size)"),
+                {"id": str(uuid.uuid4()), "burger_id": burger_id, "size": d}
+            )
+
+        # Insert ingredients
+        for d in normalized_ingredients:
+            conn.execute(
+                text("INSERT INTO burger_ingredients (id, burger_id, ingredients) VALUES (:id, :burger_id, :ingredients)"),
+                {"id": str(uuid.uuid4()), "burger_id": burger_id, "ingredients": d}
+            )
+
+        # Insert main image
         conn.execute(
             text("INSERT INTO burger_main_imgs (id, burger_id, url) VALUES (:id, :burger_id, :url)"),
             {"id": str(uuid.uuid4()), "burger_id": burger_id, "url": url_main}
         )
+
     return {"message": "Burger created", "id": burger_id, "main_image_url": url_main}
 
 @router.get("/burgers", tags=["Food"])
