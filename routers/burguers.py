@@ -131,6 +131,37 @@ def get_burgers():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.delete("/delete_burgers/{id_burger}", tags=["Food"])
+def delete_burger(id_burger: str):
+    try:
+        with engine.begin() as conn:
+            result = conn.execute(
+                text("""
+                    DELETE FROM burger
+                    WHERE id_burger = :id_burger
+                """),
+                {"id_burger": id_burger},
+            )
+
+            for u in os.listdir(IMAGES_DIR):
+                if u.startswith(id_burger):
+                    os.remove(os.path.join(IMAGES_DIR, u))
+            
+            conn.execute(
+                text("DELETE FROM burger_main_imgs WHERE burger_id = :id_burger"),
+                {"id_burger": id_burger},
+            )
+            conn.execute(
+                text("DELETE FROM burger_size WHERE burger_id = :id_burger"),
+                {"id_burger": id_burger},
+            )
+            if result.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Burger not found")
+
+            return {"message": "Burger with your images and size deleted succesfully", "id_burger": id_burger}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/fries", tags=["Food"])
 async def create_fries(
     name: str = Form(...),
