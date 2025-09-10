@@ -9,8 +9,11 @@ from models.users_client import UserCreate, UserUpdate, FavouriteCreate, Favouri
 
 router = APIRouter()
 
-IMAGES_DIR = "api/images/"
+IMAGES_DIR = "images/"
 DOMAIN_URL = "https://api-burgerli.iwebtecnology.com/api/images"
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+IMAGES_DIR = os.path.join(PROJECT_ROOT, "images")
 
 @router.post("/burgers", tags=["Food"])
 async def create_burger(
