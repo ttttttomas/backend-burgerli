@@ -20,27 +20,24 @@ async def create_burger(
     main_image: UploadFile = File(..., description="Main image"),
     size: List[str] = Form(default=[]),
     description: str = Form(...),
-    ingredients: List[str] = Form(default=[]),      
+    ingredients: List[str] = Form(default=[]),
 ):
     burger_id = str(uuid.uuid4())
 
-    # Normalizar sizes
     normalized_size = []
     for d in size:
         if isinstance(d, str) and "," in d:
-            normalized_size.extend([item.strip() for item in d.split(",") if item.strip()])
+            normalized_size.extend([x.strip() for x in d.split(",") if x.strip()])
         elif d:
             normalized_size.append(d.strip())
 
-    # Normalizar ingredientes
     normalized_ingredients = []
     for d in ingredients:
         if isinstance(d, str) and "," in d:
-            normalized_ingredients.extend([item.strip() for item in d.split(",") if item.strip()])
+            normalized_ingredients.extend([x.strip() for x in d.split(",") if x.strip()])
         elif d:
             normalized_ingredients.append(d.strip())
 
-    # Guardar imagen
     if not os.path.exists(IMAGES_DIR):
         os.makedirs(IMAGES_DIR, exist_ok=True)
     ext = os.path.splitext(main_image.filename or "file.jpg")[1]
@@ -50,9 +47,8 @@ async def create_burger(
         shutil.copyfileobj(main_image.file, buf)
     url_main = f"{DOMAIN_URL}/{fname}"
 
-    # Un solo bloque con la conexión
     with engine.begin() as conn:
-        # Insert burger
+        # Burger
         conn.execute(
             text("""
                 INSERT INTO burger (id_burger, name, price, stock, description)
@@ -61,21 +57,21 @@ async def create_burger(
             {"id": burger_id, "name": name, "price": price, "stock": stock, "description": description},
         )
 
-        # Insert sizes
-        for d in normalized_size:
+        # Sizes
+        for s in normalized_size:
             conn.execute(
                 text("INSERT INTO burger_size (id, burger_id, size) VALUES (:id, :burger_id, :size)"),
-                {"id": str(uuid.uuid4()), "burger_id": burger_id, "size": d}
+                {"id": str(uuid.uuid4()), "burger_id": burger_id, "size": s}
             )
 
-        # Insert ingredients
-        for d in normalized_ingredients:
+        # Ingredients
+        for ing in normalized_ingredients:
             conn.execute(
                 text("INSERT INTO burger_ingredients (id, burger_id, ingredients) VALUES (:id, :burger_id, :ingredients)"),
-                {"id": str(uuid.uuid4()), "burger_id": burger_id, "ingredients": d}
+                {"id": str(uuid.uuid4()), "burger_id": burger_id, "ingredients": ing}
             )
 
-        # Insert main image
+        # Main image
         conn.execute(
             text("INSERT INTO burger_main_imgs (id, burger_id, url) VALUES (:id, :burger_id, :url)"),
             {"id": str(uuid.uuid4()), "burger_id": burger_id, "url": url_main}
