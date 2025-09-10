@@ -10,7 +10,7 @@ from models.users_client import UserCreate, UserUpdate, FavouriteCreate, Favouri
 router = APIRouter()
 
 IMAGES_DIR = "images/"
-DOMAIN_URL = "http://api-burgerli.iwebtecnology.com/images"
+DOMAIN_URL = "http://api-burgerli.iwebtecnology.com/api/images"
 
 @router.post("/burgers", tags=["Food"])
 async def create_burger(
@@ -19,21 +19,22 @@ async def create_burger(
     name: str = Form(...),
     main_image: UploadFile = File(..., description="Main image"),
     size: List[str] = Form(default=[]),
-    description: List[str] = Form(default=[]),
+    description: str = Form(...),
     ingredients: List[str] = Form(default=[]),      
 ):
     burger_id = str(uuid.uuid4())
     with engine.begin() as conn:
         conn.execute(
             text("""
-                INSERT INTO burger (id_burger, name, price, stock)
-                VALUES (:id, :name, :price, :stock)
+                INSERT INTO burger (id_burger, name, price, stock, description)
+                VALUES (:id, :name, :price, :stock, :description)
             """),
             {
                 "id": burger_id,
                 "name": name,
                 "price": price,
                 "stock": stock,
+                "description": description
             },
         )
 
@@ -54,25 +55,6 @@ async def create_burger(
                 VALUES (:id, :burger_id, :size)
             """),
             {"id": str(uuid.uuid4()), "burger_id": burger_id, "size": d}
-        )
-    
-    # Insert description
-    normalized_description = []
-    for d in description:
-        if isinstance(d, str) and "," in d:
-            normalized_description.extend([item.strip() for item in d.split(",") if item.strip()])
-        elif d:
-            normalized_description.append(d.strip())
-    
-    for d in normalized_description:
-        if not d:
-            continue
-        conn.execute(
-            text("""
-                INSERT INTO burger_description (id, burger_id, description)
-                VALUES (:id, :burger_id, :description)
-            """),
-            {"id": str(uuid.uuid4()), "burger_id": burger_id, "description": d}
         )
     
     # Insert ingredients
