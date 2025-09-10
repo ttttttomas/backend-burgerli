@@ -111,11 +111,6 @@ def get_burgers():
                     {"id": hid}
                 ).scalars().all()
 
-                description_list = conn.execute(
-                    text("SELECT description FROM burger_description WHERE burger_id = :id"),
-                    {"id": hid}
-                ).scalars().all()
-
                 ingredients_list = conn.execute(
                     text("SELECT ingredients FROM burger_ingredients WHERE burger_id = :id"),
                     {"id": hid}
@@ -124,7 +119,6 @@ def get_burgers():
                 data = dict(burger)
                 data["main_image"] = main[0] if main else None
                 data["size_list"] = size_list
-                data["description_list"] = description_list
                 data["ingredients_list"] = ingredients_list
                 burgers.append(data)
             return burgers
@@ -155,10 +149,14 @@ def delete_burger(id_burger: str):
                 text("DELETE FROM burger_size WHERE burger_id = :id_burger"),
                 {"id_burger": id_burger},
             )
+            conn.execute(
+                text("DELETE FROM burger_ingredients WHERE burger_id = :id_burger"),
+                {"id_burger": id_burger},
+            )
             if result.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Burger not found")
 
-            return {"message": "Burger with your images and size deleted succesfully", "id_burger": id_burger}
+            return {"message": "Burger with your images, size and ingredients deleted succesfully", "id_burger": id_burger}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
