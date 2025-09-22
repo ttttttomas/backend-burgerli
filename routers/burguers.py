@@ -485,8 +485,6 @@ def get_promos():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/get_orders", tags=["Default"])
-def get_orders():
     try:
         with engine.connect() as conn:
             result = conn.execute(
