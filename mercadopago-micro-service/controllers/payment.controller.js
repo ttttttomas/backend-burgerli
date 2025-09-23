@@ -26,8 +26,8 @@ export const createOrder = async (req, res) => {
         })),
         back_urls: {
           success: "http://localhost:3000/success",
-          failure: "/",
-          pending: "/",
+          failure: "http://localhost:3000/failure",
+          pending: "http://localhost:3000/pending",
         },
         auto_return: "approved",
         binary_mode: true,
