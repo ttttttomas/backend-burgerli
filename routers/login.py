@@ -388,7 +388,7 @@ async def get_users():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/getUserByID", tags=["Login & Register Owners and employeeds"])
+@router.get("/getUserByID/{id}", tags=["Login & Register Owners and employeeds"])
 async def get_user_by_id_endpoint(id: str):
     user = get_user_by_id(id)
     if not user:

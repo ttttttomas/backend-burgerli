@@ -3,6 +3,7 @@ uvicorn
 pydantic
 pymysql
 SQLalchemy
+sqlalchemy
 mysql
 python-dotenv
 python-multipart
