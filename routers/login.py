@@ -360,7 +360,7 @@ async def login_for_access_token(
         )
         return response
 
-@router.get("/verify-cookie ", tags=["Login & Register Owners and employeeds"])
+@router.get("/verify-cookie", tags=["Login & Register Owners and employeeds"])
 async def verify_cookie(request: Request):
     token = request.cookies.get("access_token"),
     if not token:

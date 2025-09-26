@@ -1,6 +1,9 @@
 from sqlalchemy import Column, String, Float, ForeignKey
 from sqlalchemy.orm import relationship
 from Database.getConnection import Base
+from pydantic import BaseModel
+from typing import Optional, List
+from datetime import date
 
 class Order(Base):
     __tablename__ = "orders"
@@ -94,3 +97,20 @@ class OrderUserClient(Base):
     id_user_client = Column(String(50))
 
     order = relationship("Order", back_populates="client")
+
+class OrderMan(BaseModel):
+    id_order: str
+    payment_method: Optional[str]
+    delivery_mode: Optional[str]
+    price: Optional[float]
+    status: Optional[str]
+    order_notes: Optional[str]
+    local: Optional[str]
+    fries: Optional[str]
+    drinks: Optional[str]
+    name: Optional[str]
+    phone: Optional[int]
+    email: Optional[str]
+    address: Optional[str]
+    coupon: Optional[List[str]] = None
+    products: Optional[List[str]] = None
