@@ -267,3 +267,70 @@ async def create_product(
             os.remove(image_path)
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/getProducts", tags=["Products"])
+async def get_products():
+    try:
+        with engine.begin() as conn:
+            result = conn.execute(text("SELECT * FROM Products"))
+            rows = result.mappings().all()
+            if not rows:
+                raise HTTPException(status_code=404, detail="No products found.")
+            products = []  # Change the name from prod to products
+            for prod in rows:  # Now prod is just the loop variable
+                hid = prod["id_product"]
+                main = conn.execute(
+                    text("SELECT url FROM product_image WHERE product_id = :id"),
+                    {"id": hid}
+                ).fetchone()
+
+                sins_list = conn.execute(
+                    text("""
+                        SELECT s.id_sin, s.name 
+                        FROM products_sin ps
+                        JOIN sin s ON ps.sin_id = s.id_sin
+                        WHERE ps.product_id = :id
+                    """),
+                    {"id": hid}
+                ).mappings().all()
+
+                data = dict(prod)
+                data["main_image"] = main[0] if main else None
+                data["sins_list"] = [dict(sin) for sin in sins_list]  # Convert each sin to dict
+                products.append(data)
+            return products
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@router.get("/getProduct/{product_id}", tags=["Products"])
+async def get_product(product_id: str):
+    try:
+        with engine.begin() as conn:
+            prod = conn.execute(
+                text("SELECT * FROM Products WHERE id_product = :id"),
+                {"id": product_id}
+            ).mappings().first()
+            if not prod:
+                raise HTTPException(status_code=404, detail="Product not found.")
+
+            hid = prod["id_product"]
+            main = conn.execute(
+                text("SELECT url FROM product_image WHERE product_id = :id"),
+                {"id": hid}
+            ).fetchone()
+
+            sins_list = conn.execute(
+                text("""
+                    SELECT s.id_sin, s.name 
+                    FROM products_sin ps
+                    JOIN sin s ON ps.sin_id = s.id_sin
+                    WHERE ps.product_id = :id
+                """),
+                {"id": hid}
+            ).mappings().all()
+
+            data = dict(prod)
+            data["main_image"] = main[0] if main else None
+            data["sins_list"] = [dict(sin) for sin in sins_list]  # Convert each sin to dict
+            return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
