@@ -20,7 +20,6 @@ class UserUpdate(BaseModel):
     phone: str
     password: str
     locality: str
-    direction: str
     notes: Optional[str] = None
 
 class FavouriteProduct(BaseModel):

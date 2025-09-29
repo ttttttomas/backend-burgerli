@@ -47,42 +47,33 @@ def get_users():
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/get_users/{id_user_client}", tags=["Users Clients"])
-def get_user_with_favorites(id_user_client: str):
+def get_user_by_id(id_user_client: str):
     try:
         with engine.connect() as conn:
             user = conn.execute(
                 text("""
-                    SELECT id_user_client, name, email, phone, password, locality, direction, notes
+                    SELECT id_user_client, name, email, phone, password, locality, notes
                     FROM user_client
                     WHERE id_user_client = :id_user_client
                 """),
                 {"id_user_client": id_user_client},
-            ).mappings().first()
+            )
 
-            if not user:
-                raise HTTPException(status_code=404, detail="User not found")
+            rows = user.mappings().all()
+            if not rows:
+                raise HTTPException(status_code=404, detail="No users found")
+            users = []
+            for user in rows:
+                hid = user["id_user_client"]
+                address_list = conn.execute(
+                    text("SELECT address FROM user_client_address WHERE user_id = :hid"),
+                    {"hid": hid}
+                ).scalars().all()
 
-            favorites = conn.execute(
-                text("""
-                    SELECT f.favourite_id, f.status, fp.product_type, fp.product_id
-                    FROM favourites f
-                    LEFT JOIN favourites_products fp ON f.favourite_id = fp.favourite_id
-                    WHERE f.user_id = :id_user_client
-                """),
-                {"id_user_client": id_user_client},
-            ).mappings().all()
-
-        fav_map = {}
-        for fav in favorites:
-            fid = fav["favourite_id"]
-            if fid not in fav_map:
-                fav_map[fid] = {"favourite_id": fid, "status": fav["status"], "products": []}
-            if fav["product_id"]:
-                fav_map[fid]["products"].append(
-                    {"type": fav["product_type"], "id": fav["product_id"]}
-                )
-
-        return {**user, "favorites": list(fav_map.values())}
+                data = dict(user)
+                data["addresses"] = address_list
+                users.append(data)
+        return users
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -132,7 +123,6 @@ def update_user(id_user_client: str, user: UserUpdate):
                         phone = :phone,
                         password = :password,
                         locality = :locality,
-                        direction = :direction,
                         notes = :notes
                     WHERE id_user_client = :id_user_client
                 """),
@@ -164,152 +154,7 @@ def delete_user(id_user_client: str):
         return {"message": "User deleted successfully", "id_user_client": id_user_client}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-# @router.post("/users/{id_user_client}/favourites", tags=["Users Clients"])
-# def create_favourite(id_user_client: str, favourite: FavouriteCreate):
-#     try:
-#         with engine.begin() as conn:
-#             user = conn.execute(
-#                 text("""
-#                     SELECT id_user_client
-#                     FROM user_client
-#                     WHERE id_user_client = :id_user_client
-#                 """),
-#                 {"id_user_client": id_user_client},
-#             ).first()
-
-#             if not user:
-#                 raise HTTPException(status_code=404, detail="User not found")
-
-#             favourite_id = str(uuid.uuid4())
-
-#             conn.execute(
-#                 text("""
-#                     INSERT INTO favourites (favourite_id, user_id, status)
-#                     VALUES (:favourite_id, :user_id, :status)
-#                 """),
-#                 {"favourite_id": favourite_id, "user_id": id_user_client, "status": favourite.status},
-#             )
-
-#             for product in favourite.products:
-#                 conn.execute(
-#                     text("""
-#                         INSERT INTO favourites_products (favourite_id, product_type, product_id)
-#                         VALUES (:favourite_id, :product_type, :product_id)
-#                     """),
-#                     {
-#                         "favourite_id": favourite_id,
-#                         "product_type": product.product_type,
-#                         "product_id": product.product_id,
-#                     },
-#                 )
-
-#         return {"message": "Favorite created successfully", "favourite_id": favourite_id}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-
-# @router.post("/users/{id_user_client}/favourites/toggle", tags=["Users"])
-# def toggle_favourite(
-#     id_user_client: str,
-#     payload: FavouriteToggleRequest = Body(...)
-# ):
-#     try:
-#         with engine.begin() as conn:
-#             user = conn.execute(
-#                 text("""
-#                     SELECT id_user_client
-#                     FROM user_client
-#                     WHERE id_user_client = :id
-#                 """),
-#                 {"id": id_user_client},
-#             ).first()
-#             if not user:
-#                 raise HTTPException(status_code=404, detail="User not found")
-
-#             fav = conn.execute(
-#                 text("""
-#                     SELECT favourite_id, status
-#                     FROM favourites
-#                     WHERE user_id = :uid
-#                     ORDER BY favourite_id ASC
-#                     LIMIT 1
-#                 """),
-#                 {"uid": id_user_client},
-#             ).mappings().first()
-
-#             if not fav:
-#                 favourite_id = str(uuid.uuid4())
-#                 conn.execute(
-#                     text("""
-#                         INSERT INTO favourites (favourite_id, user_id, status)
-#                         VALUES (:fid, :uid, :status)
-#                     """),
-#                     {"fid": favourite_id, "uid": id_user_client, "status": "active"},
-#                 )
-#             else:
-#                 favourite_id = fav["favourite_id"]
-
-#             existing = conn.execute(
-#                 text("""
-#                     SELECT 1
-#                     FROM favourites_products
-#                     WHERE favourite_id = :fid
-#                       AND product_type = :ptype
-#                       AND product_id = :pid
-#                     LIMIT 1
-#                 """),
-#                 {
-#                     "fid": favourite_id,
-#                     "ptype": payload.product_type,
-#                     "pid": payload.product_id,
-#                 },
-#             ).first()
-
-#             if existing:
-#                 conn.execute(
-#                     text("""
-#                         DELETE FROM favourites_products
-#                         WHERE favourite_id = :fid
-#                           AND product_type = :ptype
-#                           AND product_id = :pid
-#                     """),
-#                     {
-#                         "fid": favourite_id,
-#                         "ptype": payload.product_type,
-#                         "pid": payload.product_id,
-#                     },
-#                 )
-#                 return {
-#                     "message": "Removed from favorites",
-#                     "favourite_id": favourite_id,
-#                     "favorited": False,
-#                     "product": payload.model_dump(),
-#                 }
-#             else:
-#                 conn.execute(
-#                     text("""
-#                         INSERT INTO favourites_products (favourite_id, product_type, product_id)
-#                         VALUES (:fid, :ptype, :pid)
-#                     """),
-#                     {
-#                         "fid": favourite_id,
-#                         "ptype": payload.product_type,
-#                         "pid": payload.product_id,
-#                     },
-#                 )
-#                 return {
-#                     "message": "Added to favorites",
-#                     "favourite_id": favourite_id,
-#                     "favorited": True,
-#                     "product": payload.model_dump(),
-#                 }
-
-#     except HTTPException:
-#         raise
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
     
-
 # Owners and employeeds
 
 @router.post("/register", tags=["Login & Register"])
