@@ -141,16 +141,38 @@ async def create_order(Order: OrderMan):
 async def get_orders():
     try:
         with engine.connect() as connection:
+            # Obtener órdenes con cupones y productos
             select_query = text("""
-                SELECT o.*, 
-                       array_agg(c.id_coupons) as coupon
+                SELECT 
+                    o.*,
+                    GROUP_CONCAT(DISTINCT c.id_coupons) as coupon,
+                    GROUP_CONCAT(DISTINCT op.product_id) as products
                 FROM orders o
                 LEFT JOIN order_coupons oc ON o.id_order = oc.id_order
                 LEFT JOIN coupons c ON oc.id_coupons = c.id_coupons
+                LEFT JOIN order_products op ON o.id_order = op.order_id
                 GROUP BY o.id_order
             """)
             result = connection.execute(select_query)
-            orders = [OrderMan(**dict(row)) for row in result.fetchall()]
+            
+            orders = []
+            for row in result.mappings().all():  # Usar mappings() para obtener diccionarios
+                order_dict = dict(row)
+                
+                # Procesar cupones
+                if order_dict.get('coupon'):
+                    order_dict['coupon'] = order_dict['coupon'].split(',')
+                else:
+                    order_dict['coupon'] = []
+                    
+                # Procesar productos
+                if order_dict.get('products'):
+                    order_dict['products'] = order_dict['products'].split(',')
+                else:
+                    order_dict['products'] = []
+                
+                orders.append(OrderMan(**order_dict))
+                
             return orders
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
