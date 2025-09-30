@@ -106,8 +106,6 @@ class OrderMan(BaseModel):
     status: Optional[str]
     order_notes: Optional[str]
     local: Optional[str]
-    fries: Optional[str]
-    drinks: Optional[str]
     name: Optional[str]
     phone: Optional[int]
     email: Optional[str]
