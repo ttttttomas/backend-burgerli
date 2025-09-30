@@ -82,39 +82,40 @@ async def create_burger(
 
     return {"message": "Burger created", "id": burger_id, "main_image_url": url_main}
 
-@router.get("/burgers", tags=["Food"])
+@router.get("/burgers", tags=["Food"]) 
 def get_burgers():
     try:
         with engine.begin() as conn:
-            result = conn.execute(text("SELECT * FROM burger"))
-            rows = result.mappings().all()
-            if not rows:
-                raise HTTPException(status_code=404, detail="No burger found.")
+            result = conn.execute(
+                text("""
+                    SELECT 
+                        b.*,
+                        bmi.url as main_image,
+                        GROUP_CONCAT(DISTINCT bs.size) as sizes,
+                        GROUP_CONCAT(DISTINCT bi.ingredients) as ingredients
+                    FROM burger b
+                    LEFT JOIN burger_main_imgs bmi ON bmi.burger_id = b.id_burger
+                    LEFT JOIN burger_size bs ON bs.burger_id = b.id_burger 
+                    LEFT JOIN burger_ingredients bi ON bi.burger_id = b.id_burger
+                    GROUP BY b.id_burger
+                """)
+            ).mappings().all()
+
+            if not result:
+                raise HTTPException(status_code=404, detail="No burgers found.")
+
             burgers = []
-            for burger in rows:
-                hid = burger["id_burger"]
-                main = conn.execute(
-                    text("SELECT url FROM burger_main_imgs WHERE burger_id = :id"),
-                    {"id": hid}
-                ).fetchone()
-
-                size_list = conn.execute(
-                    text("SELECT size FROM burger_size WHERE burger_id = :id"),
-                    {"id": hid}
-                ).scalars().all()
-
-                ingredients_list = conn.execute(
-                    text("SELECT ingredients FROM burger_ingredients WHERE burger_id = :id"),
-                    {"id": hid}
-                ).scalars().all()
-
-                data = dict(burger)
-                data["main_image"] = main[0] if main else None
-                data["size_list"] = size_list
-                data["ingredients_list"] = ingredients_list
+            for row in result:
+                data = dict(row)
+                data["size_list"] = data.pop("sizes", "").split(",") if data.get("sizes") else []
+                data["ingredients_list"] = data.pop("ingredients", "").split(",") if data.get("ingredients") else []
                 burgers.append(data)
+
             return burgers
+
     except Exception as e:
+        # Agregar log del error
+        print(f"Error getting burgers: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/delete_burgers/{id_burger}", tags=["Food"])

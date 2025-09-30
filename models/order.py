@@ -112,5 +112,5 @@ class OrderMan(BaseModel):
     phone: Optional[int]
     email: Optional[str]
     address: Optional[str]
-    coupon: Optional[List[str]] = None
+    coupon: Optional[str] = None
     products: Optional[List[str]] = None
