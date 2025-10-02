@@ -22,3 +22,14 @@ class User(BaseModel):
     
     class Config:
         from_attributes = True
+
+class UserClient(Base):
+    __tablename__ = "user_client"
+
+    id_user_client = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100))
+    phone = Column(String(20))
+    email = Column(String(100), unique=True, index=True)
+    password = Column(String(100))
+    locality = Column(String(100))
+    notes = Column(String(255))

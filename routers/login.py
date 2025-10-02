@@ -1,17 +1,27 @@
 from queue import PriorityQueue
 import re
-from fastapi import FastAPI, Depends, HTTPException, APIRouter, Response, Cookie, Request
+from fastapi import FastAPI, Depends, HTTPException, APIRouter, Response, Cookie, Request, Form
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
 from auth.authentication import oauth2_scheme, get_current_user, create_access_token
 from models.user import User
-from Database.users import verify_user_credentials, get_user_by_username, create_user, delete_user, get_user_by_id, get_user_by_username_and_password, update_user
+from Database.users import verify_user_credentials, get_user_by_username, create_user, delete_user, get_user_by_id, get_user_by_username_and_password, update_user, verify_user_client, get_user_client_by_email
 from Database.getConnection import engine
 from sqlalchemy import JSON, text
 import uuid
 import os
+from typing import Annotated, Optional, Union
 from fastapi.middleware.cors import CORSMiddleware
 from models.users_client import UserCreate, UserUpdate, FavouriteCreate, FavouriteToggleRequest
+
+class UserClientLoginForm:
+    def __init__(
+        self,
+        email: Annotated[str, Form()],
+        password: Annotated[str, Form()],
+    ):
+        self.email = email
+        self.password = password
 
 IS_LOCAL = os.getenv("ENV") == "dev"
 
@@ -205,6 +215,40 @@ async def login_for_access_token(
         )
         return response
 
+@router.post("/token-user-client", tags=["Users Clients"])
+async def login_user_client_for_access_token(
+    form_data: Annotated[UserClientLoginForm, Depends()]
+):
+    if verify_user_client(form_data.email, form_data.password):
+        user = get_user_client_by_email(
+            email=form_data.email
+        )
+        if user is None:
+            raise HTTPException(
+                status_code=400,
+                detail="User not found after verification"
+            )
+        access_token = create_access_token(
+            data={"sub": form_data.email}
+        )
+        response = JSONResponse(
+            content={"message": "Login successful, session stored in cookie.", "Token": access_token, "ID": user.id_user_client},
+        )
+        response.set_cookie(
+            key="Authorization",
+            value=access_token,
+            httponly=True,
+            secure=True,
+            samesite="none",
+            max_age=3600,
+            path="/",
+        )
+        return response
+    raise HTTPException(
+        status_code=401,
+        detail="Incorrect email or password"
+    )
+
 @router.get("/verify-cookie", tags=["Login & Register Owners and employeeds"])
 async def verify_cookie(request: Request):
     token = request.cookies.get("access_token"),
@@ -290,3 +334,12 @@ async def test_set_cookie_post():
         path="/",
     )
     return response
+
+class UserClientLoginForm:
+    def __init__(
+        self,
+        email: Annotated[str, Form()],
+        password: Annotated[str, Form()],
+    ):
+        self.email = email
+        self.password = password

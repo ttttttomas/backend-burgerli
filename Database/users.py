@@ -1,5 +1,5 @@
 from typing import Optional
-from models.user import UserDB, User
+from models.user import UserDB, User, UserClient
 from Database.getConnection import getConnectionForLogin
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, text
@@ -30,6 +30,42 @@ def get_user_by_username_and_password(username: str, password: str):
     if user is not None and str(user.password) == str(password):
         return user
     return None
+
+def get_user_client_by_email(email: str) -> Optional[UserClient]:
+    """
+    Obtiene un usuario cliente de la base de datos por su email
+    """
+    db = getConnectionForLogin()
+    if db is None:
+        return None
+    
+    try:
+        user_client = db.query(UserClient).filter(UserClient.email == email).first()
+        return user_client
+    except Exception as e:
+        print(f"Error getting user client: {e}")
+        return None
+    finally:
+        db.close()
+
+def verify_user_client(email: str, password: str) -> bool:
+    """
+    Verifica las credenciales del usuario cliente y devuelve True si son válidas
+    """
+    db = getConnectionForLogin()
+    if db is None:
+        return False
+    
+    try:
+        user_client = db.query(UserClient).filter(and_(UserClient.email == email, UserClient.password == password)).first()
+        if user_client:
+            return True
+        return False
+    except Exception as e:
+        print(f"Error verifying user client: {e}")
+        return False
+    finally:
+        db.close()
 
 def verify_user_credentials(username: str, password: str) -> bool:
     """
