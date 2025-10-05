@@ -21,7 +21,7 @@ IMAGES_DIR = os.path.join(PROJECT_ROOT, "images")
 @router.post("/createOrder", tags=["Orders"])
 async def create_order(order: OrderMan):
     try:
-        id_order = str(uuid.uuid4())
+        id_order = order.id_order
         payment_method = order.payment_method
         delivery_mode = order.delivery_mode
         price = order.price
@@ -95,7 +95,18 @@ async def get_orders():
     try:
         with engine.connect() as conn:
             result = conn.execute(text("SELECT * FROM orders"))
-            return [result.mappings().all()]
+
+            products = []
+            for row in result.mappings().all():
+                order_id = row['id_order']
+                prod_result = conn.execute(text("SELECT products FROM order_products WHERE order_id = :order_id"), {"order_id": order_id})
+                product_list = [prod_row['products'] for prod_row in prod_result.mappings().all()]
+                row = dict(row)
+                row['products'] = product_list
+                products.append(row)
+
+            return products
+        
     except OperationalError as e:
         print(f"Database connection error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database connection error: {str(e)}")
