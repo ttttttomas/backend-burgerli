@@ -119,6 +119,12 @@ async def get_order_by_id(id_order: str):
             order = result.mappings().first()
             if not order:
                 raise HTTPException(status_code=404, detail="Order not found")
+            
+            prod_result = conn.execute(text("SELECT products FROM order_products WHERE order_id = :order_id"), {"order_id": id_order})
+            product_list = [prod_row['products'] for prod_row in prod_result.mappings().all()]
+
+            order = dict(order)
+            order['products'] = product_list
             return order
     except OperationalError as e:
         print(f"Database connection error: {str(e)}")
