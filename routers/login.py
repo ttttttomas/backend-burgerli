@@ -3,7 +3,7 @@ import re
 from fastapi import FastAPI, Depends, HTTPException, APIRouter, Response, Cookie, Request, Form
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
-from auth.authentication import oauth2_scheme, get_current_user, create_access_token
+from auth.authentication import oauth2_scheme, get_current_user, create_access_token, verify_token
 from models.user import User
 from Database.users import verify_user_credentials, get_user_by_username, create_user, delete_user, get_user_by_id, get_user_by_username_and_password, update_user, verify_user_client, get_user_client_by_email
 from Database.getConnection import engine
@@ -198,10 +198,10 @@ async def login_for_access_token(
                 detail="User not found after verification"
             )
         access_token = create_access_token(
-            data={"sub": form_data.username}
+            data={"user_id": user.id, "username": user.username}
         )
         response = JSONResponse(
-            content={"message": "Login successful, session stored in cookie.", "Token": access_token, "ID": user.id},
+            content={"message": "Login successful, session stored in cookie.", "Token": access_token, "user_id": user.id},
         )
         response.set_cookie(
             key="Authorization",
@@ -251,10 +251,10 @@ async def login_user_client_for_access_token(
 
 @router.get("/verify-cookie", tags=["Login & Register Owners and employeeds"])
 async def verify_cookie(request: Request):
-    token = request.cookies.get("access_token"),
+    token = request.cookies.get("Authorization")
     if not token:
-        raise HTTPException(status_code=400, detail="Cookie no presente")
-    return {"status": "Cookie válida"}
+        raise HTTPException(status_code=401, detail="Cookie no presente")
+    return verify_token(token)
 
 @router.get("/protected", tags=["Login & Register Owners and employeeds"])
 async def protected_route(username: str = Depends(get_current_user)):
@@ -263,7 +263,12 @@ async def protected_route(username: str = Depends(get_current_user)):
 
 @router.get("/logout", tags=["Login & Register Owners and employeeds"])
 async def logout(current_user: str = Depends(get_current_user)):
-    return {"message": f"Logged out {current_user}"}
+    response = JSONResponse({"message": f"Logged out {current_user}"})
+    response.delete_cookie(
+        key="Authorization",
+        path="/",
+    )
+    return response
 
 @router.get("/getUsers", tags=["Login & Register Owners and employeeds"])
 async def get_users():
