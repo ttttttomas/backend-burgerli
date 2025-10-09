@@ -25,8 +25,15 @@ def create_access_token(data: dict):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+def verify_token(token: str):
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        print(payload)
+        if id is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        return payload
+
 def get_current_user(request: Request):
-    token = request.cookies.get("access_token")
+    token = request.cookies.get("Authorization")
     if not token:
         raise HTTPException(
             status_code=401,
@@ -34,10 +41,10 @@ def get_current_user(request: Request):
         )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub")
-        if username is None:
+        user = payload.get("user_id")
+        if user is None:
             raise HTTPException(status_code=401, detail="Invalid token")
-        return username
+        return user
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
