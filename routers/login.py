@@ -14,7 +14,7 @@ from typing import Annotated, Optional, Union
 from fastapi.middleware.cors import CORSMiddleware
 from models.users_client import UserCreate, UserUpdate, FavouriteCreate, FavouriteToggleRequest
 
-class UserClientLoginForm:
+class UsersClientLoginForm:
     def __init__(
         self,
         email: Annotated[str, Form()],
@@ -30,7 +30,7 @@ router = APIRouter()
 # Users clients
 
 @router.get("/get_users", tags=["Users Clients"])
-def get_users():
+def getUsers():
     try:
         with engine.connect() as conn:
             result = conn.execute(
@@ -57,7 +57,7 @@ def get_users():
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/get_users/{id_user_client}", tags=["Users Clients"])
-def get_user_by_id(id_user_client: str):
+def getUserById(id_user_client: str):
     try:
         with engine.connect() as conn:
             user = conn.execute(
@@ -88,7 +88,7 @@ def get_user_by_id(id_user_client: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/create_user", tags=["Users Clients"])
-def create_user(user: UserCreate):
+def createUser(user: UserCreate):
     try:
         user_id = str(uuid.uuid4())
         payload = user.model_dump()
@@ -121,10 +121,15 @@ def create_user(user: UserCreate):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.put("/mod-user/{id_user_client}", tags=["Users Clients"])
-def update_user(id_user_client: str, user: UserUpdate):
+def updateUser(id_user_client: str, user: UserUpdate):
     try:
         payload = user.model_dump()
         with engine.begin() as conn:
+            current_addresses = conn.execute(
+                text("SELECT COUNT(*) FROM user_client_address WHERE user_id = :user_id"),
+                {"user_id": id_user_client}
+            ).scalar()
+
             result = conn.execute(
                 text("""
                     UPDATE user_client
@@ -139,15 +144,55 @@ def update_user(id_user_client: str, user: UserUpdate):
                 {**payload, "id_user_client": id_user_client},
             )
 
-        if result.rowcount == 0:
-            raise HTTPException(status_code=404, detail="User not found")
+            if result.rowcount == 0:
+                raise HTTPException(status_code=404, detail="User not found")
 
-        return {"message": "User updated successfully", "id_user_client": id_user_client}
+            new_addresses = payload.get("addresses", [])
+            
+            if current_addresses == 0 and len(new_addresses) > 0:
+                print(f"Adding {len(new_addresses)} new addresses for user with no existing addresses")
+                for address in new_addresses:
+                    conn.execute(
+                        text("""
+                            INSERT INTO user_client_address (id, user_id, address)
+                            VALUES (:id, :user_id, :address)
+                        """),
+                        {
+                            "id": str(uuid.uuid4()),
+                            "user_id": id_user_client,
+                            "address": address
+                        }
+                    )
+            elif new_addresses is not None:
+                conn.execute(
+                    text("DELETE FROM user_client_address WHERE user_id = :user_id"),
+                    {"user_id": id_user_client}
+                )
+                for address in new_addresses:
+                    conn.execute(
+                        text("""
+                            INSERT INTO user_client_address (address_id, user_id, address)
+                            VALUES (:address_id, :user_id, :address)
+                        """),
+                        {
+                            "address_id": str(uuid.uuid4()),
+                            "user_id": id_user_client,
+                            "address": address
+                        }
+                    )
+
+        return {
+            "message": "User updated successfully", 
+            "id_user_client": id_user_client,
+            "addresses_added": len(new_addresses) if new_addresses else 0
+        }
+        
     except Exception as e:
+        print(f"Error updating user: {str(e)}")  # For debugging
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/delete_user/{id_user_client}", tags=["Users Clients"])
-def delete_user(id_user_client: str):
+def deleteUser(id_user_client: str):
     try:
         with engine.begin() as conn:
             result = conn.execute(
@@ -217,7 +262,7 @@ async def login_for_access_token(
 
 @router.post("/token-user-client", tags=["Users Clients"])
 async def login_user_client_for_access_token(
-    form_data: Annotated[UserClientLoginForm, Depends()]
+    form_data: Annotated[UsersClientLoginForm, Depends()]
 ):
     if verify_user_client(form_data.email, form_data.password):
         user = get_user_client_by_email(

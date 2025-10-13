@@ -17,10 +17,11 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     name: str
     email: str
-    phone: str
+    phone: int
     password: str
     locality: str
     notes: Optional[str] = None
+    addresses: Optional[List[str]] = None
 
 class FavouriteProduct(BaseModel):
     product_type: Literal['burger', 'fries', 'drinks', 'combo', 'promo', 'dayPromo']

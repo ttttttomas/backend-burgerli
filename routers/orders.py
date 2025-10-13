@@ -33,7 +33,7 @@ async def create_order(order: OrderMan):
         email = order.email
         address = order.address
         coupon = order.coupon
-        products = order.products
+        products = order.products or []
 
         normalized_products = []
         for product in products:
