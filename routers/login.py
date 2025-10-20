@@ -107,11 +107,11 @@ def createUser(user: UserCreate):
             for address in normalized_addresses:
                 conn.execute(
                     text("""
-                        INSERT INTO user_client_address (address_id, user_id, address)
-                        VALUES (:address_id, :user_id, :address)
+                        INSERT INTO user_client_address (id, user_id, address)
+                        VALUES (:id, :user_id, :address)
                     """),
                     {
-                        "address_id": str(uuid.uuid4()),
+                        "id": str(uuid.uuid4()),
                         "user_id": user_id,
                         "address": address,
                     },
@@ -274,7 +274,7 @@ async def login_user_client_for_access_token(
                 detail="User not found after verification"
             )
         access_token = create_access_token(
-            data={"sub": form_data.email}
+            data={"user_id": user.id_user_client, "username": user.name,"email": user.email, "phone": user.phone}
         )
         response = JSONResponse(
             content={"message": "Login successful, session stored in cookie.", "Token": access_token, "ID": user.id_user_client},
