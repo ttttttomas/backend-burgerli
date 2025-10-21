@@ -1,7 +1,7 @@
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends, HTTPException, Request
 from fastapi.websockets import WebSocket
-from jose import JWTError, jwt
+from jose import JWTError, jwt, ExpiredSignatureError
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -10,6 +10,12 @@ from models.user import User
 SECRET_KEY = "MdpuF8KsXiRArNlHtl6pXO2XyLSJMTQ8_Burgerli"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
+
+class WSAuthError(Exception):
+    def __init__(self, code: int = 1008, reason: str = ""):
+        self.code = code
+        self.reason = reason
+        super().__init__(reason)
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="token",
@@ -48,17 +54,19 @@ def get_current_user(request: Request):
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-async def get_current_user_ws(websocket: WebSocket, token: str) -> str:
-    credentials_exception = HTTPException(
-        status_code=401,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+async def get_current_user_ws(token: str) -> str:
+    if not token:
+        raise WSAuthError(1008, "Missing token")
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-        return username
+    except ExpiredSignatureError:
+        raise WSAuthError(1008, "Expired token")
     except JWTError:
-        raise credentials_exception
+        raise WSAuthError(1008, "Invalid token")
+
+    user_id = payload.get("user_id") or payload.get("sub") or payload.get("username")
+    if not user_id:
+        raise WSAuthError(1008, "Missing user id in token")
+
+    return str(user_id)

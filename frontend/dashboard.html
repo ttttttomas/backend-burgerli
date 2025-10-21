@@ -125,36 +125,41 @@
         };
 
         function crearTicket(pedido, clienteId) {
-            console.log("🎫 Función crearTicket llamada con:", pedido, clienteId);
-            
-            const ticketId = Date.now(); // Generamos un ID único
             const ticket = document.createElement('div');
             ticket.classList.add('ticket');
             ticket.setAttribute('data-estado', 'confirmado');
-            ticket.id = `ticket-${ticketId}`;
+            ticket.id = `ticket-${pedido.id}`;
             ticket.setAttribute('data-cliente', clienteId);
 
+            const formatoMoneda = new Intl.NumberFormat('es-AR', {
+                style: 'currency',
+                currency: 'ARS'
+            });
+
             ticket.innerHTML = `
-                <div class="estado">🕒 Estado: <span id="estado-${ticketId}">confirmado</span></div>
-                <div class="pedido-info"><strong>Pedido:</strong> ${pedido}</div>
-                <div class="cliente-info"><strong>Cliente ID:</strong> ${clienteId}</div>
+                <div class="estado">🕒 Estado: <span id="estado-${pedido.id}">confirmado</span></div>
+                <div class="pedido-info">
+                    <p><strong>Combo:</strong> ${pedido.combo}</p>
+                    <p><strong>Precio:</strong> ${formatoMoneda.format(pedido.price)}</p>
+                    <p><strong>Entrega:</strong> ${pedido.delivery_mode}</p>
+                    <p><strong>Pago:</strong> ${pedido.payment_method}</p>
+                    ${pedido.order_notes ? `<p><strong>Notas:</strong> ${pedido.order_notes}</p>` : ''}
+                </div>
+                <div class="cliente-info">ID Cliente: ${clienteId}</div>
                 <div class="acciones">
-                    <button class="btn-preparacion" onclick="cambiarEstado('${ticketId}', '${clienteId}', 'en preparacion')">
+                    <button class="btn-preparacion" onclick="cambiarEstado('${pedido.id}', '${clienteId}', 'en preparacion')">
                         🔨 En preparación
                     </button>
-                    <button class="btn-camino" onclick="cambiarEstado('${ticketId}', '${clienteId}', 'en camino')">
+                    <button class="btn-camino" onclick="cambiarEstado('${pedido.id}', '${clienteId}', 'en camino')">
                         🚚 En camino
                     </button>
-                    <button class="btn-entregado" onclick="cambiarEstado('${ticketId}', '${clienteId}', 'entregado')">
+                    <button class="btn-entregado" onclick="cambiarEstado('${pedido.id}', '${clienteId}', 'entregado')">
                         ✅ Entregado
                     </button>
                 </div>
             `;
 
-            const ticketsContainer = document.getElementById('tickets');
-            console.log("📦 Agregando ticket al contenedor:", ticketsContainer);
-            ticketsContainer.prepend(ticket);
-            console.log("✅ Ticket agregado exitosamente");
+            document.getElementById('tickets').prepend(ticket);
         }
 
         function actualizarEstado(ticketId, estado) {

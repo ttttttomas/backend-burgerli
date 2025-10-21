@@ -54,45 +54,35 @@
 
   <form id="formPedido">
     <label>Combo:</label>
-    <input type="text" id="combo" placeholder="ID o nombre del combo" />
+    <select id="combo" required>
+      <option value="classic">Combo Clásico</option>
+      <option value="double">Combo Doble</option>
+      <option value="veggie">Combo Veggie</option>
+    </select>
 
     <label>Método de Pago:</label>
-    <input type="text" id="payment_method" placeholder="Efectivo / MP / Tarjeta" required />
+    <select id="payment_method" required>
+      <option value="efectivo">Efectivo</option>
+      <option value="mp">Mercado Pago</option>
+      <option value="tarjeta">Tarjeta</option>
+    </select>
 
     <label>Modo de Entrega:</label>
-    <input type="text" id="delivery_mode" placeholder="Delivery / Retiro" required />
+    <select id="delivery_mode" required>
+      <option value="delivery">Delivery</option>
+      <option value="retiro">Retiro en Local</option>
+    </select>
 
     <label>Precio Total:</label>
-    <input type="number" id="price" placeholder="Ej: 3500" required />
-
-    <label>Cupón:</label>
-    <input type="text" id="coupon" placeholder="Código de descuento" />
+    <input type="number" id="price" required />
 
     <label>Notas del Pedido:</label>
-    <textarea id="order_notes" placeholder="Sin mayonesa, extra queso, etc."></textarea>
-
-    <label>Local:</label>
-    <input type="text" id="local" placeholder="Sucursal o punto de retiro" />
-
-    <label>Hamburguesas:</label>
-    <input type="text" id="burgers" placeholder='Ej: ["Cheeseburger", "Veggie"]' required />
-
-    <label>Papas Fritas:</label>
-    <input type="text" id="fries" placeholder='Ej: ["Clásicas"]' required />
-
-    <label>Bebidas:</label>
-    <input type="text" id="drinks" placeholder='Ej: ["Coca", "Sprite"]' required />
-
-    <label>Sin:</label>
-    <input type="text" id="sin" placeholder='Ej: ["Cebolla"]' />
-
-    <label>Extra:</label>
-    <input type="text" id="extra" placeholder='Ej: ["Queso", "Bacon"]' />
+    <textarea id="order_notes" placeholder="Instrucciones especiales..."></textarea>
 
     <button type="submit">Enviar Pedido</button>
   </form>
 
-  <div id="estadoActual">Estado: <span id="estadoTexto">confirmado</span></div>
+  <div id="estadoActual">Estado: <span id="estadoTexto">pendiente</span></div>
   <div class="progreso">
     <div class="paso" id="paso-confirmado">Confirmado</div>
     <div class="paso" id="paso-en preparacion">En preparación</div>
@@ -110,41 +100,26 @@
       progreso[p] = document.getElementById("paso-" + p);
     });
 
-    function getUrlParameter(name) {
-      const urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get(name);
-    }
-
-    const token = getUrlParameter('token');
-    
+    const token = new URLSearchParams(window.location.search).get('token');
     if (!token) {
-      alert('Token no encontrado. Redirigiendo al login...');
       window.location.href = 'http://localhost:5500/frontend/login.html';
     }
 
     const ws = new WebSocket(`ws://localhost:8000/ws/orders?token=${token}`);
 
-    ws.onopen = () => {
-      console.log("✅ Conectado al WebSocket desde pedido");
+    ws.onopen = () => console.log("✅ Conectado al WebSocket");
+    ws.onerror = (error) => console.error("❌ Error:", error);
+    ws.onclose = (event) => {
+      if (event.code === 1008) {
+        alert('Token inválido. Redirigiendo...');
+        window.location.href = 'http://localhost:5500/frontend/login.html';
+      }
     };
 
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data);
       if (msg.event === "status_update") {
-        const estado = msg.status;
-        actualizarEstado(estado);
-      }
-    };
-
-    ws.onerror = (error) => {
-      console.error("❌ Error en WebSocket:", error);
-    };
-
-    ws.onclose = (event) => {
-      console.log("🔌 WebSocket cerrado:", event.code, event.reason);
-      if (event.code === 1008) {
-        alert('Token inválido. Redirigiendo al login...');
-        window.location.href = 'http://localhost:5500/frontend/login.html';
+        actualizarEstado(msg.status);
       }
     };
 
@@ -152,18 +127,13 @@
       e.preventDefault();
 
       const pedido = {
+        id: Date.now().toString(),
         combo: document.getElementById("combo").value,
         payment_method: document.getElementById("payment_method").value,
         delivery_mode: document.getElementById("delivery_mode").value,
         price: parseFloat(document.getElementById("price").value),
-        coupon: document.getElementById("coupon").value,
         order_notes: document.getElementById("order_notes").value,
-        local: document.getElementById("local").value,
-        burgers: JSON.parse(document.getElementById("burgers").value || "[]"),
-        fries: JSON.parse(document.getElementById("fries").value || "[]"),
-        drinks: JSON.parse(document.getElementById("drinks").value || "[]"),
-        sin: JSON.parse(document.getElementById("sin").value || "[]"),
-        extra: JSON.parse(document.getElementById("extra").value || "[]"),
+        timestamp: new Date().toISOString()
       };
 
       if (ws.readyState === WebSocket.OPEN) {
@@ -171,10 +141,10 @@
           event: "new_order",
           pedido: pedido
         }));
-        actualizarEstado("confirmado");
         form.reset();
+        actualizarEstado("confirmado");
       } else {
-        alert('Conexión WebSocket no disponible. Intenta recargar la página.');
+        alert('Error de conexión. Intenta recargar la página.');
       }
     });
 
