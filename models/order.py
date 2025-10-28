@@ -99,16 +99,16 @@ class OrderUserClient(Base):
     order = relationship("Order", back_populates="client")
 
 class OrderMan(BaseModel):
-    id_order: str
-    payment_method: Optional[str]
-    delivery_mode: Optional[str]
-    price: Optional[float]
-    status: Optional[str]
-    order_notes: Optional[str]
-    local: Optional[str]
-    name: Optional[str]
-    phone: Optional[int]
-    email: Optional[str]
-    address: Optional[str]
+    id_order: Optional[str] = None
+    payment_method: Optional[str] = None
+    delivery_mode: Optional[str] = None
+    price: Optional[float] = None
+    status: Optional[str] = None
+    order_notes: Optional[str] = None
+    local: Optional[str] = None
+    name: Optional[str] = None
+    phone: Optional[int] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
     coupon: Optional[str] = None
     products: Optional[List[str]] = None
