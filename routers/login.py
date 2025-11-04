@@ -243,7 +243,7 @@ async def login_for_access_token(
                 detail="User not found after verification"
             )
         access_token = create_access_token(
-            data={"user_id": user.id, "username": user.username}
+            data={"id": user.id, "username": user.username, "rol": user.rol, "local": user.local}
         )
         response = JSONResponse(
             content={"message": "Login successful, session stored in cookie.", "Token": access_token, "user_id": user.id},
@@ -300,6 +300,13 @@ async def verify_cookie(request: Request):
     if not token:
         raise HTTPException(status_code=401, detail="Cookie no presente")
     return verify_token(token)
+
+@router.get("/me")
+def read_me(request: Request, current_user = Depends(get_current_user)):
+    token = request.cookies.get("Authorization")
+    if not token:
+        raise HTTPException(status_code=401, detail="Cookie no presente")
+    return current_user
 
 @router.get("/protected", tags=["Login & Register Owners and employeeds"])
 async def protected_route(username: str = Depends(get_current_user)):

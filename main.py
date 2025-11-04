@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(root_path="/api")
 
+
 origins = [
     "http://localhost:3000",
     "https://burgerli-website.vercel.app",
@@ -22,7 +23,7 @@ origins = [
 
 app.add_middleware( 
     CORSMiddleware,
-    allow_origins=[origins[0], origins[1], origins[2], origins[3], origins[4], origins[5], origins[6]],
+    allow_origins= origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
