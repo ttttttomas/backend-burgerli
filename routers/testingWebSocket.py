@@ -20,10 +20,11 @@ class ConnectionManager:
         # dashboards registrados (subset de active_connections)
         self.dashboards: Dict[str, WebSocket] = {}
 
-    async def connect(self, websocket: WebSocket, user_id: str):
+    async def connect(self, websocket: WebSocket, order_id: str):
         await websocket.accept()
-        self.active_connections[user_id] = websocket
-        print(f"[WS] conectado: {user_id}")
+        self.active_connections[order_id] = websocket
+        print(f"[WS] conectado orden: {order_id}")
+
 
     def disconnect(self, user_id: str):
         if user_id in self.active_connections:
@@ -44,21 +45,29 @@ class ConnectionManager:
             self.dashboards[user_id] = self.active_connections[user_id]
             print(f"[WS] dashboard registrado: {user_id}")
 
-    async def send_personal_message(self, message: dict, user_id: str):
-        conn = self.active_connections.get(user_id)
+    async def send_personal_message(self, message: dict, order_id: str):
+        conn = self.active_connections.get(order_id)
         if conn:
             try:
                 await conn.send_text(json.dumps(message))
             except Exception as e:
-                print(f"[WS] error al enviar a {user_id}: {e}")
+                print(f"[WS] error al enviar a {order_id}: {e}")
 
     async def broadcast_to_dashboards(self, message: dict):
-        # se hace copia de valores por si cambian durante iteración
+        print(f"[DEBUG] Dashboards activos: {list(self.dashboards.keys())}")
+
         for uid, conn in list(self.dashboards.items()):
             try:
+                
                 await conn.send_text(json.dumps(message))
             except Exception as e:
                 print(f"[WS] error broadcast dashboard {uid}: {e}")
+            try:
+                await conn.close()  # cerrar conexión dañada
+            except:
+                pass
+            self.dashboards.pop(uid, None)  # eliminar dashboard muerto
+
 
 
 manager = ConnectionManager()
@@ -103,15 +112,19 @@ async def websocket_endpoint(websocket: WebSocket):
         return
 
     # Loop de mensajes
+    print(f"[WS] Nueva conexión desde: {websocket.client.host}")
     try:
         while True:
+            
             data_raw = await websocket.receive_text()
+            print(f"[WS] Recibido: {data_raw}")
 
             # Parseo robusto
             try:
                 data = json.loads(data_raw)
             except Exception:
                 # mensaje no-JSON -> ignorar silenciosamente
+                print(f"[WS] ERROR: {e}")
                 continue
 
             event = data.get("event")
@@ -122,6 +135,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
             # 2) Nuevo pedido de un cliente
             elif event == "new_order":
+                print(f"[WS] Mensaje recibido: {data}")
                 pedido = data.get("pedido", {}) or {}
 
                 # Confirmación al cliente (mismo user_id)

@@ -11,6 +11,7 @@ from sqlalchemy.exc import OperationalError
 from enum import Enum
 from pydantic import BaseModel
 import time
+from routers.testingWebSocket import manager
 
 router = APIRouter()
 
@@ -86,7 +87,34 @@ async def create_order(order: OrderMan):
                 })
 
             # ACA VA WEBSOCKET
-            
+                # 2️⃣ Notificar a dashboards
+            message_dashboard = {
+                "event": "new_order",
+                "pedido": {
+                    "id_order": id_order,
+                    "payment_method": payment_method,
+                    "delivery_mode": delivery_mode,
+                    "price": price,
+                    "status": status, 
+                    "order_notes": order_notes,
+                    "local": local,
+                    "name": name,
+                    "phone": phone,
+                    "email": email,
+                    "address": address
+                },
+                'user_id': id_order
+            }
+            await manager.broadcast_to_dashboards(message_dashboard)
+            # print(f"Broadcasted to dashboards: {message_dashboard}")
+
+            # 3️⃣ Notificar al cliente (si tiene WebSocket activo)
+            message_cliente = {
+                "event": "status_update",
+                "status": "confirmado",
+                "pedido": message_dashboard["pedido"],
+            }
+            await manager.send_personal_message(message_cliente, id_order)
             
             # Transaction will auto-commit here
             return {"message": "Order created successfully", "order_id": id_order}
