@@ -85,6 +85,9 @@ async def create_order(order: OrderMan):
                     "name": coupon
                 })
 
+            # ACA VA WEBSOCKET
+            
+            
             # Transaction will auto-commit here
             return {"message": "Order created successfully", "order_id": id_order}
         
