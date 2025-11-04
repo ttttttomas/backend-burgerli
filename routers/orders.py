@@ -136,7 +136,7 @@ async def get_order_by_id(id_order: str):
         raise HTTPException(status_code=500, detail=f"Database connection error: {str(e)}")
     
 @router.put("/updateOrderStatus/{id_order}", tags=["Orders"])
-async def update_order_status(id_order: str, status: str = Body(..., embed=True)):
+async def update_order_status_simple(id_order: str, status: str = Body(..., embed=True)):
     try:
         with engine.begin() as conn:
             result = conn.execute(text("UPDATE orders SET status = :status WHERE id_order = :id_order"), {
