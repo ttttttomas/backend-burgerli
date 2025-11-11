@@ -101,7 +101,8 @@ async def create_order(order: OrderMan):
                     "name": name,
                     "phone": phone,
                     "email": email,
-                    "address": address
+                    "address": address,
+                    'products': products
                 },
                 'user_id': id_order
             }

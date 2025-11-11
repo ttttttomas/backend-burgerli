@@ -13,6 +13,7 @@ app = FastAPI(root_path="/api")
 
 origins = [
     "http://localhost:3000",
+    "http://localhost:3001",
     "https://burgerli-website.vercel.app",
     "https://imido-curliest-cole.ngrok-free.dev",
     "https://cart-test-nu.vercel.app",
