@@ -104,18 +104,10 @@ async def create_order(order: OrderMan):
                     "address": address,
                     'products': products
                 },
-                'user_id': id_order
+                'order_id': id_order
             }
             await manager.broadcast_to_dashboards(message_dashboard)
             # print(f"Broadcasted to dashboards: {message_dashboard}")
-
-            # 3️⃣ Notificar al cliente (si tiene WebSocket activo)
-            message_cliente = {
-                "event": "status_update",
-                "status": "confirmado",
-                "pedido": message_dashboard["pedido"],
-            }
-            await manager.send_personal_message(message_cliente, id_order)
             
             # Transaction will auto-commit here
             return {"message": "Order created successfully", "order_id": id_order}
@@ -212,17 +204,24 @@ async def update_order_status(
                 raise HTTPException(status_code=404, detail="Order not found")
 
             old_status: str = row["status"]
+            # si StatusUpdate usa Enum, .value te deja el string
             new_status: str = body.status.value
 
+            # 2) Validar transición
             if old_status not in VALID_TRANSITIONS:
+                # si no está en el dict, dejás pasar (como ya tenías)
                 pass
             else:
-                if new_status not in VALID_TRANSITIONS[old_status] and new_status != old_status:
+                if (
+                    new_status not in VALID_TRANSITIONS[old_status]
+                    and new_status != old_status
+                ):
                     raise HTTPException(
                         status_code=409,
-                        detail=f"Invalid transition: {old_status} -> {new_status}"
+                        detail=f"Invalid transition: {old_status} -> {new_status}",
                     )
 
+            # 3) Si no cambió nada, devolvés y NO emitís eventos
             if new_status == old_status:
                 return {
                     "message": "Order status unchanged",
@@ -231,28 +230,48 @@ async def update_order_status(
                     "new_status": new_status,
                 }
 
+            # 4) Actualizar en la DB
             result = conn.execute(
-                text("""
+                text(
+                    """
                     UPDATE orders
                     SET status = :status
                     WHERE id_order = :id_order
-                """),
+                    """
+                ),
                 {"status": new_status, "id_order": id_order},
             )
 
             if result.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Order not found")
 
-            return {
-                "message": "Order status updated successfully",
-                "id_order": id_order,
-                "old_status": old_status,
-                "new_status": new_status,
-            }
+        # 5) Armar payload común para WS
+        payload = {
+            "event": "status_update",
+            "id_order": id_order,
+            "old_status": old_status,
+            "new_status": new_status,
+        }
 
-    except OperationalError as e:
-        print(f"Database connection error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database connection error")
+        # 6) Avisar a la TIENDA (solo esa orden)
+        await manager.broadcast_order(id_order, payload)
+
+        # 7) Avisar a TODOS los DASHBOARDS
+        await manager.broadcast_to_dashboards(payload)
+
+        # 8) Respuesta HTTP
+        return {
+            "message": "Order status updated successfully",
+            **payload,
+        }
+
+    except HTTPException:
+        # re-lanzo las HTTPException tal cual
+        raise
+    except Exception as e:
+        print(f"[PATCH /orders/{id_order}/status] error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
     
 @router.delete("/deleteOrder/{id_order}", tags=["Orders"])
 async def delete_order(id_order: str):

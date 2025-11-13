@@ -1,197 +1,222 @@
-# testingWebsocket.py
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from typing import Dict
+from typing import Dict, List, Optional
 import json
 
-# Importá tu verificador WS y la excepción custom
-# (ver auth/authentication.py tal como te pasé: get_current_user_ws(token) + WSAuthError)
-from auth.authentication import get_current_user_ws, WSAuthError
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-# Opcional: si guardás pedidos desde el WS
-from Database.orders import save_order_from_ws
+# Verificador WS y excepción custom (como ya tenías)
+from auth.authentication import get_current_user_ws, WSAuthError
 
 router = APIRouter()
 
 
-class ConnectionManager:
-    def __init__(self):
-        # conexiones activas por user_id
-        self.active_connections: Dict[str, WebSocket] = {}
-        # dashboards registrados (subset de active_connections)
-        self.dashboards: Dict[str, WebSocket] = {}
+class OrderConnectionManager:
+    """
+    Maneja dos tipos de conexiones:
+    - order_connections: conexiones de TIENDA, una o más pestañas escuchando UNA order_id
+    - dashboard_connections: conexiones de DASHBOARD, escuchan TODOS los eventos
+    """
 
-    async def connect(self, websocket: WebSocket, order_id: str):
+    def __init__(self) -> None:
+        # {order_id: [WebSocket, WebSocket, ...]}
+        self.order_connections: Dict[str, List[WebSocket]] = {}
+        # [WebSocket, WebSocket, ...]
+        self.dashboard_connections: List[WebSocket] = []
+
+    # ---------- TIENDA (por order_id) ----------
+
+    async def connect_order(self, order_id: str, websocket: WebSocket) -> None:
         await websocket.accept()
-        self.active_connections[order_id] = websocket
-        print(f"[WS] conectado orden: {order_id}")
+        self.order_connections.setdefault(order_id, []).append(websocket)
+        print(f"[WS] conectado seguimiento order_id={order_id}")
 
+    def disconnect_order(self, order_id: str, websocket: WebSocket) -> None:
+        conns = self.order_connections.get(order_id)
+        if not conns:
+            return
 
-    def disconnect(self, user_id: str):
-        if user_id in self.active_connections:
+        if websocket in conns:
+            conns.remove(websocket)
+
+        if not conns:
+            # si no quedan conexiones para esa orden, la sacamos del dict
+            self.order_connections.pop(order_id, None)
+
+        print(f"[WS] desconectado seguimiento order_id={order_id}")
+
+    async def broadcast_order(self, order_id: str, message: dict) -> None:
+        """
+        Envía un mensaje solo a las conexiones de tienda que estén
+        escuchando esa order_id.
+        """
+        conns = self.order_connections.get(order_id)
+        if not conns:
+            return
+
+        text = json.dumps(message)
+        for ws in list(conns):
             try:
-                del self.active_connections[user_id]
+                await ws.send_text(text)
+            except Exception as e:
+                print(f"[WS] error al enviar a order_id={order_id}: {e}")
+                self.disconnect_order(order_id, ws)
+
+    # ---------- DASHBOARD (todas las órdenes) ----------
+
+    async def connect_dashboard(self, websocket: WebSocket, user_id: Optional[str] = None) -> None:
+        await websocket.accept()
+        self.dashboard_connections.append(websocket)
+        print(f"[WS] dashboard conectado: {user_id or id(websocket)}")
+
+    def disconnect_dashboard(self, websocket: WebSocket) -> None:
+        if websocket in self.dashboard_connections:
+            self.dashboard_connections.remove(websocket)
+            print("[WS] dashboard desconectado")
+
+    async def broadcast_to_dashboards(self, message: dict) -> None:
+        """
+        Envía un mensaje a TODOS los dashboards conectados.
+        """
+        print(f"[DEBUG] Dashboards activos: {len(self.dashboard_connections)}")
+        text = json.dumps(message)
+
+        for ws in list(self.dashboard_connections):
+            try:
+                await ws.send_text(text)
+            except Exception as e:
+                print(f"[WS] error broadcast dashboard: {e}")
+                try:
+                    await ws.close()
+                except Exception:
+                    pass
+                self.disconnect_dashboard(ws)
+
+
+manager = OrderConnectionManager()
+
+@router.websocket("/ws/orders/{order_id}")
+async def websocket_order_tracking(websocket: WebSocket, order_id: str):
+    """
+    Conexión de la TIENDA (cliente final), para seguir una orden específica.
+
+    URL: ws://.../ws/orders/{order_id}?token=...
+    - order_id: id de la orden (string)
+    - token: opcional, se valida con get_current_user_ws
+    """
+
+    token = websocket.cookies.get("Authorization")
+
+
+    # Opcional: validar token (si lo mandás desde la tienda)
+    if token:
+        try:
+            user_id = await get_current_user_ws(token)
+            print(f"[WS TRACKING] user_id={user_id} escuchando order_id={order_id}")
+        except WSAuthError as e:
+            print(f"[WS TRACKING AUTH] rechazo: {e}")
+            try:
+                await websocket.close(code=e.code)
             except Exception:
                 pass
-        if user_id in self.dashboards:
+            return
+        except Exception as e:
+            print(f"[WS TRACKING AUTH ERROR] {e}")
             try:
-                del self.dashboards[user_id]
+                await websocket.close(code=1008)
             except Exception:
                 pass
-        print(f"[WS] desconectado: {user_id}")
+            return
 
-    def register_dashboard(self, user_id: str):
-        # registra como dashboard la conexión existente
-        if user_id in self.active_connections:
-            self.dashboards[user_id] = self.active_connections[user_id]
-            print(f"[WS] dashboard registrado: {user_id}")
+    await manager.connect_order(order_id, websocket)
 
-    async def send_personal_message(self, message: dict, order_id: str):
-        conn = self.active_connections.get(order_id)
-        if conn:
-            try:
-                await conn.send_text(json.dumps(message))
-            except Exception as e:
-                print(f"[WS] error al enviar a {order_id}: {e}")
-
-    async def broadcast_to_dashboards(self, message: dict):
-        print(f"[DEBUG] Dashboards activos: {list(self.dashboards.keys())}")
-
-        for uid, conn in list(self.dashboards.items()):
-            try:
-                
-                await conn.send_text(json.dumps(message))
-            except Exception as e:
-                print(f"[WS] error broadcast dashboard {uid}: {e}")
-            try:
-                await conn.close()  # cerrar conexión dañada
-            except:
-                pass
-            self.dashboards.pop(uid, None)  # eliminar dashboard muerto
+    try:
+        # En este caso no esperamos mensajes de la tienda,
+        # solo mantenemos viva la conexión.
+        while True:
+            # si querés soportar ping del cliente, podés hacer un parse del mensaje acá
+            _ = await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect_order(order_id, websocket)
+    except Exception as e:
+        print(f"[WS TRACKING LOOP ERROR] {e}")
+        manager.disconnect_order(order_id, websocket)
+        try:
+            await websocket.close(code=1011)
+        except Exception:
+            pass
 
 
-
-manager = ConnectionManager()
-
-
+# =====================================================
+#   WS Dashboard: escucha TODAS las órdenes
+#   wss://tu-dominio.com/ws/orders
+# =====================================================
 @router.websocket("/ws/orders")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_dashboard(websocket: WebSocket):
     """
-    Conexiones:
-      - Dashboard sin token: ?token ausente -> user_id = dashboard_<id(socket)>
-      - Cliente autenticado: ?token=<JWT> -> user_id = el del token
-    Mensajes esperados:
-      - {"event":"identify","type":"dashboard"}
-      - {"event":"new_order","pedido":{...}}
-      - {"event":"change_status","status":"...","to":"<user_id>","pedido":{...}}
+    Conexión del DASHBOARD.
+
+    URL: ws://.../ws/orders?token=...
+
+    Si hay token:
+      - lo validamos y usamos el user_id solo para logs.
+    Si no hay token:
+      - se conecta como dashboard anónimo (útil para testeo).
     """
-    token = websocket.query_params.get("token")
+
+    token = websocket.cookies.get("Authorization")
+
+    user_id: Optional[str] = None
 
     # Autenticación/identidad durante el handshake
     try:
-        if not token:
-            # Permitís dashboards sin auth (anónimo controlado)
-            user_id = f"dashboard_{id(websocket)}"
-            await manager.connect(websocket, user_id)
+        if token:
+            user_id = await get_current_user_ws(token)
         else:
-            user_id = await get_current_user_ws(token)  # puede lanzar WSAuthError
-            await manager.connect(websocket, user_id)
+            user_id = f"dashboard_{id(websocket)}"
+
+        await manager.connect_dashboard(websocket, user_id)
     except WSAuthError as e:
-        # Cerrá explícitamente con el código que trae la excepción (1008 por defecto)
         try:
             await websocket.close(code=e.code)
         except Exception:
             pass
-        print(f"[WS AUTH] rechazo handshake: {e.reason if hasattr(e, 'reason') else 'auth error'}")
+        print(f"[WS DASHBOARD AUTH] rechazo: {e}")
         return
     except Exception as e:
-        print(f"[WS AUTH ERROR] {e}")
+        print(f"[WS DASHBOARD AUTH ERROR] {e}")
         try:
             await websocket.close(code=1008)
         except Exception:
             pass
         return
 
-    # Loop de mensajes
-    print(f"[WS] Nueva conexión desde: {websocket.client.host}")
+    print(f"[WS] Nueva conexión dashboard desde: {websocket.client.host} user_id={user_id}")
+
     try:
         while True:
-            
             data_raw = await websocket.receive_text()
-            print(f"[WS] Recibido: {data_raw}")
+            print(f"[WS DASHBOARD] Recibido: {data_raw}")
 
-            # Parseo robusto
+            # Si querés, acá podés manejar pings o futuros comandos del dashboard
             try:
                 data = json.loads(data_raw)
             except Exception:
-                # mensaje no-JSON -> ignorar silenciosamente
-                print(f"[WS] ERROR: {e}")
+                # mensaje no JSON -> lo ignoramos
                 continue
 
             event = data.get("event")
 
-            # 1) Identificar dashboards (para recibir broadcasts)
-            if event == "identify" and data.get("type") == "dashboard":
-                manager.register_dashboard(user_id)
+            # Ejemplo: ping/pong
+            if event == "ping":
+                await websocket.send_text(json.dumps({"event": "pong"}))
 
-            # 2) Nuevo pedido de un cliente
-            elif event == "new_order":
-                print(f"[WS] Mensaje recibido: {data}")
-                pedido = data.get("pedido", {}) or {}
-
-                # Confirmación al cliente (mismo user_id)
-                await manager.send_personal_message(
-                    {
-                        "event": "status_update",
-                        "status": "confirmado",
-                        "pedido": pedido,
-                    },
-                    user_id,
-                )
-
-                # Broadcast a todos los dashboards
-                mensaje_dashboard = {
-                    "event": "new_order",
-                    "pedido": pedido,
-                    "user_id": user_id,
-                }
-                await manager.broadcast_to_dashboards(mensaje_dashboard)
-
-            # 3) Cambio de estado desde dashboard hacia un cliente
-            elif event == "change_status":
-                new_status = data.get("status", "")
-                target = data.get("to", "")
-                pedido_data = data.get("pedido", {}) or {}
-
-                # Aviso al cliente objetivo
-                await manager.send_personal_message(
-                    {
-                        "event": "status_update",
-                        "status": new_status,
-                        "pedido": pedido_data,
-                    },
-                    target,
-                )
-
-                # Si se entregó, persistimos (opcional)
-                if new_status == "entregado":
-                    try:
-                        pedido_data["status"] = new_status
-                        # guardamos el user_id del cliente en el pedido
-                        pedido_data["user_client"] = target
-                        save_order_from_ws(pedido_data)
-                    except Exception as e:
-                        print(f"❌ Error al guardar pedido en DB: {e}")
-
-            # (Opcional) Podés agregar eventos ping/pong custom si querés mantener viva la conexión
-            # elif event == "ping":
-            #     await manager.send_personal_message({"event": "pong"}, user_id)
-
+            # Si en el futuro querés manejar otras cosas por WS, lo agregás acá
+            # (pero para cambio de estado es más prolijo usar HTTP PATCH)
     except WebSocketDisconnect:
-        manager.disconnect(user_id)
+        manager.disconnect_dashboard(websocket)
     except Exception as e:
-        print(f"[WS LOOP ERROR] {e}")
-        manager.disconnect(user_id)
+        print(f"[WS DASHBOARD LOOP ERROR] {e}")
+        manager.disconnect_dashboard(websocket)
         try:
-            await websocket.close(code=1011)  # error interno
+            await websocket.close(code=1011)
         except Exception:
             pass
