@@ -185,7 +185,7 @@ async def change_order_local(order_id: str, body: ChangeLocalBody):
                 "order_notes": order_dict.get("order_notes"),
                 "coupon": order_dict.get("coupon"),
                 "coupon_amount": order_dict.get("coupon_amount"),
-                "products": product_list,
+                "products": order_dict.get("product_list"),
                 "created_at": (
                     order_dict.get("created_at").isoformat()
                     if order_dict.get("created_at")
